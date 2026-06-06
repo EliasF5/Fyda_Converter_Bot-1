@@ -139,7 +139,7 @@ if __name__ == '__main__':
     threading.Thread(target=run_flask, daemon=True).start()
     
     # Application Bot ijaaruu
-    app = ApplicationBuilder().token(8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY).build()
+    app = ApplicationBuilder().token("8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY").build()
     
     # Handlers walitti hidhuu
     app.add_handler(CommandHandler("start", start))
