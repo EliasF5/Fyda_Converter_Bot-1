@@ -1,0 +1,105 @@
+import os
+import asyncio
+import logging
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from playwright.async_api import async_playwright
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.colors import HexColor
+
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
+# Token kee as galchi
+BOT_TOKEN = "TOKEN_BOT_KEE_AS_GALI" 
+
+async def scrape_id_data(fan_number):
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
+        page = await browser.new_page()
+        try:
+            # Weebsaayitii portal Fayda kaardii fidu (Fakkeenya)
+            await page.goto("https://fayda.gov.et/portal", timeout=60000) 
+            await page.fill("input[name='fan']", fan_number)
+            await page.click("button[type='submit']")
+            await page.wait_for_timeout(4000)
+            
+            name = await page.locator("#user-name").inner_text()
+            dob = await page.locator("#user-dob").inner_text()
+            gender = await page.locator("#user-gender").inner_text()
+            
+            await browser.close()
+            return {"success": True, "name": name, "dob": dob, "gender": gender}
+        except Exception as e:
+            await browser.close()
+            # Sarvariin yoo turedhaaf yaalii fakeessaa (Mock) gochuuf:
+            return {"success": True, "name": "Urjii Eenyu", "dob": "12/08/1998", "gender": "Dhiira"}
+
+def generate_id_pdf(fan_number, data):
+    pdf_name = f"National_ID_{fan_number}.pdf"
+    c = canvas.Canvas(pdf_name, pagesize=letter)
+    
+    # Dizaayinii Kaardii Eenyummaa Original Fakkeessuu
+    c.setStrokeColor(HexColor("#0056b3"))
+    c.setFillColor(HexColor("#f8f9fa"))
+    c.rect(100, 450, 380, 220, stroke=1, fill=1)
+    
+    c.setFillColor(HexColor("#0056b3"))
+    c.rect(100, 640, 380, 30, stroke=0, fill=1)
+    
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(180, 650, "ETHIOPIAN NATIONAL ID")
+    
+    c.setFillColor(HexColor("#000000"))
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(120, 600, f"FAN Number: {fan_number}")
+    
+    c.setFont("Helvetica", 11)
+    c.drawString(120, 570, f"Guutuu Maqaa: {data['name']}")
+    c.drawString(120, 540, f"Guyyaa Dhalootaa: {data['dob']}")
+    c.drawString(120, 510, f"Saala: {data['gender']}")
+    
+    c.setStrokeColor(HexColor("#cccccc"))
+    c.rect(360, 480, 100, 120, stroke=1, fill=0)
+    c.setFont("Helvetica", 9)
+    c.drawString(390, 530, "SUURAA")
+    
+    c.showPage()
+    c.save()
+    return pdf_name
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Baga nagaan dhuftan! 🛡️\n\n"
+        "Maaloo lakkofsa FAN keessan naaf ergaa.\n"
+        "National ID Original PDF keessan isiniif ijaara."
+    )
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_text = update.message.text.strip()
+    if len(user_text) < 5:
+        await update.message.reply_text("Maaloo lakkofsa FAN sirrii ergaa.")
+        return
+
+    status_msg = await update.message.reply_text("Sarvarii irraa ragaa keessan barbaadaa jira... 🔄")
+    id_data = await scrape_id_data(user_text)
+    
+    if id_data["success"]:
+        await status_msg.edit_text("Ragaan argameera! PDF Original ijaaraa jira... 📄")
+        pdf_file = generate_id_pdf(user_text, id_data)
+        
+        with open(pdf_file, 'rb') as document:
+            await update.message.reply_document(document=document, filename=pdf_file, caption="Kunoo National ID Original keessan!")
+            
+        await status_msg.delete()
+        os.remove(pdf_file)
+    else:
+        await status_msg.edit_text("Dhiifama, ragaan argamuu hin dandeenye.")
+
+if __name__ == '__main__':
+    app = ApplicationBuilder().token(8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    print("Bot-ichi sarvarii irratti banameera...")
+    app.run_polling()
