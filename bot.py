@@ -10,21 +10,20 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
 
-# 1. Flask configuration to prevent 'No open ports detected' on Render
+# 1. Flask setup to bind correctly to Render's dynamic ports
 flask_app = Flask('')
 
 @flask_app.route('/')
 def home():
-    return "Bot is running perfectly live!"
+    return "Bot is running live and healthy!"
 
 def run_flask():
-    # Render requires binding to 0.0.0.0 and the PORT environment variable
     port = int(os.environ.get('PORT', 8080))
     flask_app.run(host='0.0.0.0', port=port)
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# 2. Token fixed perfectly inside quotes to resolve SyntaxError
+# 2. Token string completely cleaned and enclosed to prevent SyntaxError
 BOT_TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
 
 MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT = range(4)
