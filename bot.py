@@ -23,6 +23,7 @@ def run_flask():
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 BOT_TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
+ADMIN_ID = 6384218679  # ID Telegram kee kan kaffaltiin irratti ergamu (Amma sirriitti itti galeera)
 
 MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT = range(4)
 user_data = {}
@@ -30,7 +31,7 @@ user_data = {}
 def get_user_profile(user_id):
     if user_id not in user_data:
         user_data[user_id] = {
-            "balance": 100, 
+            "balance": 0,  # Default balance 0 guunneerra akka sobaan hin hojjenne
             "output_mode": "PDF + ID",
             "photo_mode": "Grey",
             "template": "Template A",
@@ -105,7 +106,7 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
             "የፈለጉትን የገንዘብ መጠን ወደዚህ የቴሌብር አካውንት ያስገቡ:\n"
             "📱 **Telebirr Number:** `0913701367`\n"
             "👤 **Account Name:** ELIAS FIKADU\n\n"
-            "Kaffaltii erga raawwattanii booda, **Transaction ID** (SMS) ykn **Screenshot** botii kanaaf kallaattiin ergaa!"
+            "Kaffaltii erga raawwattanii booda, **Screenshot** ykn **Transaction ID** botii kanaaf ergaa. Admin ilaalee isiniif guuta!"
         )
         await update.message.reply_text(deposit_instruction, parse_mode="Markdown")
         return GET_DEPOSIT
@@ -133,15 +134,13 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     prof = get_user_profile(user_id)
     
     if prof["balance"] < 15:
-        await update.message.reply_text("❌ Balance keessan gahaa miti. Maaloo dursee herrega guuttadhaaa.")
+        await update.message.reply_text("❌ Balance keessan gahaa miti (Gatiin 15 ETB). Maaloo dursee herrega guuttadhaaa.")
         return MAIN_MENU
         
     status_msg = await update.message.reply_text("🌐 Connecting to Fayda Server... 🔄")
-    
     p = await async_playwright().start()
     
     try:
-        # Ofumaan akka brawsaarii default ta'e kaasu qofa ajajne
         browser = await p.chromium.launch(
             headless=True, 
             args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
@@ -191,7 +190,11 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await page.locator("button[type='submit']").click()
         await asyncio.sleep(5)
         
-        prof["balance"] -= 35 
+        # Hojii xumurrnaan herrega hir'isna
+        if prof["output_mode"] == "PDF Only":
+            prof["balance"] -= 15
+        else:
+            prof["balance"] -= 35
     except Exception as e:
         await status_msg.edit_text("❌ **OTP Dogoggora ykn sarvariin addaan cite!**")
         try:
@@ -217,7 +220,7 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     c.save()
     
     with open(pdf_path, 'rb') as f:
-        await update.message.reply_document(document=f, filename= f"{safe_name}@National_idpdfbot.pdf")
+        await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf")
         
     try: os.remove(pdf_path)
     except: pass
@@ -226,12 +229,43 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await status_msg.delete()
     return MAIN_MENU
 
+# Kaffaltii kalleattiin admin biraan gahuu (Security dabalameera)
 async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-    prof = get_user_profile(user_id)
-    prof["balance"] += 50
-    await update.message.reply_text("✅ **Kaffaltiin keessan fudhatameera!**\n50 ETB Balance keessan irratti dabalameera.")
+    user = update.message.from_user
+    user_id = user.id
+    
+    admin_alert = f"💰 **Deposit Request! / አዲስ የክፍያ ጥያቄ:**\n\n👤 Name: {user.full_name}\n🆔 User ID: `{user_id}`\n\n"
+    
+    if update.message.photo:
+        photo_file = await update.message.photo[-1].get_file()
+        admin_alert += "📩 Screenshot gubbaatti ergameera. Ilaali mirkaneessi."
+        await context.bot.send_photo(chat_id=ADMIN_ID, photo=photo_file.file_id, caption=admin_alert, parse_mode="Markdown")
+    elif update.message.text:
+        admin_alert += f"💬 Transaction ID/Text: `{update.message.text}`"
+        await context.bot.send_message(chat_id=ADMIN_ID, text=admin_alert, parse_mode="Markdown")
+        
+    # User-aaf deebii gabaabaa
+    await update.message.reply_text("✅ **Kaffaltiin keessan gara Adminitti ergameera!**\nAdmin irra deebi'ee kaffaltii keessan yoo mirkaneessu, balance keessan ni guutama. Maaloo hangasitti eegaa.")
     return MAIN_MENU
+
+# Koodii Admin qofaaf tajaajilu (Herrega itti guutuuf)
+async def add_balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.from_user.id != ADMIN_ID:
+        return # Admin qofaa danda'a
+        
+    try:
+        # Fakkeenya: /add 123456789 100
+        target_user_id = int(context.args[0])
+        amount = int(context.args[1])
+        
+        prof = get_user_profile(target_user_id)
+        prof["balance"] += amount
+        
+        await update.message.reply_text(f"✅ User `{target_user_id}`-iif {amount} ETB siriitti dabalameera. Balance isaa amma: {prof['balance']} ETB", parse_mode="Markdown")
+        # User-ichaaf kalleattiin notify gochuu
+        await context.bot.send_message(chat_id=target_user_id, text=f"💰 **Herregni keessan mirkanaa'eera!**\nAdmin `{amount} ETB` balance keessan irratti dabalera. Amma tajaajilamuu dandeessu.")
+    except Exception as e:
+        await update.message.reply_text("❌ Dogoggora! Tartii kana hordofi: `/add <user_id> <amount>`")
 
 async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -260,7 +294,7 @@ if __name__ == '__main__':
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start), MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options), MessageHandler(filters.PHOTO, handle_deposit)],
+        entry_points=[CommandHandler("start", start), MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options)],
         states={
             MAIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options), CallbackQueryHandler(settings_callback)],
             GET_FAN: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_fan_state)],
@@ -270,6 +304,7 @@ if __name__ == '__main__':
         fallbacks=[CommandHandler("start", start)]
     )
     
+    app.add_handler(CommandHandler("add", add_balance_command)) # Admin koodii herrega guutu
     app.add_handler(conv_handler)
     print("Bot is successfully running...")
     app.run_polling()
