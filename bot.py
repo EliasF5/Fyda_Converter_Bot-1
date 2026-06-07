@@ -158,50 +158,70 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     page = await browser.new_page()
     
     try:
-        await page.goto("https://fayda.gov.et/portal", timeout=15000)
+        # Gara sarvarii Fayda deema
+        await page.goto("https://fayda.gov.et/portal", timeout=20000)
         await page.fill("input[name='fan']", fan_number)
         await page.click("button[type='submit']")
-        await asyncio.sleep(2)
+        await asyncio.sleep(3)
         
-        prof["session"] = {"playwright": p, "browser": browser, "page": page, "fan": fan_number}
-        await status_msg.edit_text("✅ **OTP sent !**\n\n📩 Please **send the OTP digits** here (6 digits).")
+        # Yoo milkaa'e ragaa session keessa kaaya
+        prof["session"] = {"playwright": p, "browser": browser, "page": page, "fan": fan_number, "mock": False}
+        await status_msg.edit_text("✅ **OTP sent successfully!**\n\n📩 Please **send the OTP digits** here (6 digits).")
         return GET_OTP
-    except Exception:
-        await browser.close()
-        await p.stop()
-        await status_msg.edit_text("✅ **OTP sent !** \n\n📩 Please **send the OTP digits** here (6 digits).")
-        prof["session"] = {"mock": True, "fan": fan_number}
-        return GET_OTP
+    except Exception as e:
+        # Yoo sarvariin deebii dhorkate asitti dhaaba, herrega hin hir'isu
+        logging.error(f"Fayda Portal Error: {e}")
+        try:
+            await browser.close()
+            await p.stop()
+        except:
+            pass
+        await status_msg.edit_text("❌ **Dogoggora: Sarvarii Fayda irraa deebiin hin jiru.**\nMaaloo daqiiqaa muraasa booda irra deebi'ii yaali. Herregni keessan hin hir'anne.")
+        prof["session"] = {}
+        return MAIN_MENU
 
 async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     otp_code = update.message.text.strip()
     user_id = update.message.from_user.id
     prof = get_user_profile(user_id)
     
-    status_msg = await update.message.reply_text("✅ **Done!**\n\nYour PDF has been delivered. ⏳")
+    if "page" not in prof["session"]:
+        await update.message.reply_text("❌ Session expired. Maaloo lakkofsa FAN keessan deebisaa galchaa.")
+        return MAIN_MENU
+
+    status_msg = await update.message.reply_text("✅ **OTP Processing...** ⏳")
     
     final_name = "Belay Mokonin Guta"
     fan_number = prof["session"].get("fan", "2391630461096705")
+    page = prof["session"]["page"]
     
-    if "mock" not in prof["session"] and "page" in prof["session"]:
+    try:
+        await page.fill("input[name='otp']", otp_code)
+        await page.click("button[type='submit']")
+        await asyncio.sleep(4)
+        
+        # Maqaa dhugaa sarvarii irraa fuda
+        final_name = await page.locator("#user-name").inner_text()
+        
+        # Yoo milkaa'e qofa herrega hir'isa
+        prof["balance"] -= 35 
+    except Exception as e:
+        logging.error(f"OTP verification failed: {e}")
+        await status_msg.edit_text("❌ **OTP dogoggora ykn sarvariin citeera.** Kaffaltiin keessan hin hir'anne. Maaloo irra deebi'aa yaala.")
         try:
-            page = prof["session"]["page"]
-            await page.fill("input[name='otp']", otp_code)
-            await page.click("button[type='submit']")
-            await asyncio.sleep(3)
-            final_name = await page.locator("#user-name").inner_text()
+            await prof["session"]["browser"].close()
+            await prof["session"]["playwright"].stop()
         except:
             pass
-        finally:
-            try:
-                await prof["session"]["browser"].close()
-                await prof["session"]["playwright"].stop()
-            except: 
-                pass
+        prof["session"] = {}
+        return MAIN_MENU
+    finally:
+        try:
+            await prof["session"]["browser"].close()
+            await prof["session"]["playwright"].stop()
+        except: 
+            pass
 
-    # Deduct cost
-    prof["balance"] -= 35 
-    
     safe_name = final_name.replace(" ", "_")
     pdf_path = f"{safe_name}.pdf"
     
@@ -225,7 +245,6 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf", caption=f"👤 {final_name}\nDownloaded from @National_idpdfbot")
         
     try:
-        # Faayila PDF kallaattiin reply_photo gochuun koodii waan balleessuuf 'try-except' keessa kaayameera
         with open(pdf_path, 'rb') as f:
             await update.message.reply_photo(photo=f, caption=f"Normal [{final_name}].png")
         with open(pdf_path, 'rb') as f:
