@@ -23,6 +23,7 @@ def run_flask():
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
+# Token kee kan kanaan duraa
 BOT_TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
 
 START_LANG, MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT, GET_AMOUNT_SELECTION = range(6)
@@ -131,7 +132,6 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(texts["help_msg"])
         return MAIN_MENU
     else:
-        # Yoo fayyandamaan menu osoo hin tuqin kallattiin lakkoofsa barreesse
         if len(text) >= 12 and text.isdigit():
             context.user_data["current_fan"] = text
             return await process_fan_input(update, context, text)
@@ -139,7 +139,6 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
         return MAIN_MENU
 
 async def handle_deposit_state_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Yoo fayyadamamaan text barreesse (fkn SMS kaffaltii)
     return await handle_deposit_logic(update, context, amount=50)
 
 async def handle_deposit_logic(update: Update, context: ContextTypes.DEFAULT_TYPE, amount=50):
@@ -243,7 +242,6 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         if p:
             await p.stop()
         
-        # Yoo kuffellee mock session uumee itti fufa
         prof["session"] = {"mock": True, "fan": fan_number}
         await status_msg.edit_text(texts["otp_sent"])
         return GET_OTP
@@ -258,12 +256,10 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     final_name = "Belay Mokonin Guta"
     fan_number = prof["session"].get("fan", "2391630461096705")
     
-    # Kaffaltii hir'isi
     prof["balance"] -= 35 
     safe_name = final_name.replace(" ", "_")
     pdf_path = f"{safe_name}.pdf"
     
-    # ReportLab PDF generation
     c = canvas.Canvas(pdf_path, pagesize=letter)
     c.setStrokeColor(HexColor("#0056b3"))
     c.setFillColor(HexColor("#f8f9fa"))
@@ -279,7 +275,6 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     c.showPage()
     c.save()
     
-    # Browser cufuu yaadachuu (Playwright session clenaup)
     session = prof.get("session", {})
     if "mock" not in session:
         try:
@@ -315,7 +310,6 @@ async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return MAIN_MENU
 
 if __name__ == '__main__':
-    # Flask thread keessatti jalqabi
     threading.Thread(target=run_flask, daemon=True).start()
     
     app = ApplicationBuilder().token(BOT_TOKEN).build()
