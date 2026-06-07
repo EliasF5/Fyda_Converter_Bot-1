@@ -10,26 +10,30 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
 
-# Flask Server for Render hosting
+# 1. Flask configuration to prevent 'No open ports detected' on Render
 flask_app = Flask('')
+
 @flask_app.route('/')
-def home(): return "Bot is running live!"
-def run_flask(): flask_app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+def home():
+    return "Bot is running perfectly live!"
+
+def run_flask():
+    # Render requires binding to 0.0.0.0 and the PORT environment variable
+    port = int(os.environ.get('PORT', 8080))
+    flask_app.run(host='0.0.0.0', port=port)
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
+# 2. Token fixed perfectly inside quotes to resolve SyntaxError
 BOT_TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
 
-# Conversation states
 MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT = range(4)
-
-# Temporary in-memory database for users
 user_data = {}
 
 def get_user_profile(user_id):
     if user_id not in user_data:
         user_data[user_id] = {
-            "balance": 100,  # Default welcome balance for testing
+            "balance": 100, 
             "output_mode": "PDF + ID",
             "photo_mode": "Grey",
             "template": "Template A",
@@ -114,7 +118,7 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
             "📱 **Telebirr Number:** `0913701367`\n"
             "👤 **Account Name:** URJII\n\n"
             "ከከፈሉ በኋላ, የቴሌብር የክፍያ መልዕክት (SMS) ላይ የሚገኘውን **Transaction ID** (የግብይት መለያ ቁጥር) "
-            "ወይም የክፍያውን **Screenshot** (ፎቶ) እዚህ ይላኩ:: Admin dafsee herrega keessan isiniif mogaasa!"
+            "ወይም የክፍያውን **Screenshot** (ፎቶ) እዚህ ይላኩ::"
         )
         await update.message.reply_text(deposit_instruction, parse_mode="Markdown")
         return GET_DEPOSIT
@@ -125,7 +129,7 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("Enter your 12-digit FIN or 16-digit FAN number:")
         return GET_FAN
     elif text == "📞 Help":
-        await update.message.reply_text("📞 Rakkon yoo uumame Admin qunnamaa: @Urjii_Admin\n(Maaloo lakkofsa kaffaltii keessanii sirriitti galchaa).")
+        await update.message.reply_text("📞 Rakkon yoo uumame Admin qunnamaa: @Urjii_Admin")
         return MAIN_MENU
     else:
         await update.message.reply_text("Please select a valid option from the menu.")
@@ -194,7 +198,6 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await prof["session"]["playwright"].stop()
             except: pass
 
-    # Deduct cost
     prof["balance"] -= 35 
     
     safe_name = final_name.replace(" ", "_")
@@ -231,12 +234,12 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return MAIN_MENU
 
 async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    tx_id = update.message.text.strip()
+    tx_id = update.message.text.strip() if update.message.text else "ID_VIA_SCREENSHOT"
     user_id = update.message.from_user.id
     prof = get_user_profile(user_id)
     
     prof["balance"] += 50
-    await update.message.reply_text(f"✅ **Kaffaltiin Keessan Mirkanaa'eera!**\nTransaction ID: {tx_id}\n50 ETB Balance keessan irratti dabalameera. Hojii keessan itti fufaa!")
+    await update.message.reply_text(f"✅ **Kaffaltiin Keessan Mirkanaa'eera!**\n50 ETB Balance keessan irratti dabalameera. Hojii keessan itti fufaa!")
     return MAIN_MENU
 
 async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -282,5 +285,5 @@ if __name__ == '__main__':
     )
     
     app.add_handler(conv_handler)
-    print("Bot starting up with custom Telebirr account...")
+    print("Bot starting up...")
     app.run_polling()
