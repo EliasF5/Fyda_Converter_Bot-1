@@ -12,9 +12,13 @@ from reportlab.lib.colors import HexColor
 
 # Flask Server for Render hosting
 flask_app = Flask('')
+
 @flask_app.route('/')
-def home(): return "Bot is running live!"
-def run_flask(): flask_app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+def home(): 
+    return "Bot is running live!"
+
+def run_flask(): 
+    flask_app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -192,7 +196,8 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 await prof["session"]["browser"].close()
                 await prof["session"]["playwright"].stop()
-            except: pass
+            except: 
+                pass
 
     # Deduct cost
     prof["balance"] -= 35 
@@ -223,8 +228,10 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_photo(photo=open(pdf_path, 'rb'), caption=f"Mirror [{final_name}].png")
     await update.message.reply_photo(photo=open(pdf_path, 'rb'), caption=f"A4 (Color Mirror) [{final_name}].png")
     
-    try: os.remove(pdf_path)
-    except: pass
+    try: 
+        os.remove(pdf_path)
+    except: 
+        pass
     
     prof["session"] = {}
     await status_msg.delete()
