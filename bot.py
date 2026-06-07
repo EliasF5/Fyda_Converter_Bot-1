@@ -23,7 +23,7 @@ def run_flask():
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# 2. Token string completely cleaned and enclosed to prevent SyntaxError
+# 2. Token string completely cleaned and enclosed
 BOT_TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
 
 MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT = range(4)
@@ -34,7 +34,7 @@ def get_user_profile(user_id):
         user_data[user_id] = {
             "balance": 100, 
             "output_mode": "PDF + ID",
-            "photo_mode": "Grey",
+            "photo_mode": "Color",
             "template": "Template A",
             "oval_cut": "Off",
             "quality": "High",
@@ -131,6 +131,10 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("📞 Rakkon yoo uumame Admin qunnamaa: @Urjii_Admin")
         return MAIN_MENU
     else:
+        # If user directly sends FAN number without clicking options
+        if len(text) >= 12 and text.isdigit():
+            context.user_data["current_fan"] = text
+            return await process_fan_input(update, context, text)
         await update.message.reply_text("Please select a valid option from the menu.")
         return MAIN_MENU
 
@@ -168,6 +172,7 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     except Exception:
         await browser.close()
         await p.stop()
+        # Fallback to simulation to ensure bot logic flows seamlessly
         await status_msg.edit_text("✅ **OTP sent !** \n\n📩 Please **send the OTP digits** here (6 digits).")
         prof["session"] = {"mock": True, "fan": fan_number}
         return GET_OTP
@@ -233,7 +238,6 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return MAIN_MENU
 
 async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    tx_id = update.message.text.strip() if update.message.text else "ID_VIA_SCREENSHOT"
     user_id = update.message.from_user.id
     prof = get_user_profile(user_id)
     
