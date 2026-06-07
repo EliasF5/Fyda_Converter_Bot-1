@@ -1,10 +1,4 @@
 flask
 python-telegram-bot==20.8
 playwright
-playwright-stealth
-reportlab
-flask
-python-telegram-bot==20.8
-playwright
-playwright-stealth
 reportlab
