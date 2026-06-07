@@ -2,7 +2,6 @@ import os
 import asyncio
 import logging
 import threading
-import re
 from flask import Flask
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler, CallbackQueryHandler
@@ -16,7 +15,7 @@ flask_app = Flask('')
 
 @flask_app.route('/')
 def home():
-    return "Bot is running live and healthy with multi-language support! Developed for Elias Fikadu."
+    return "Bot is running live and healthy! Developed for Elias Fikadu."
 
 def run_flask():
     port = int(os.environ.get('PORT', 10000))
@@ -28,7 +27,6 @@ BOT_TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
 
 START_LANG, MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT, GET_AMOUNT_SELECTION = range(6)
 user_data = {}
-PROCESSED_TXNS = set()
 
 LANG_TEXTS = {
     "om": {
@@ -50,7 +48,7 @@ LANG_TEXTS = {
         "insufficient": "❌ በቂ ሂሳብ የሎትም:: እባክዎ አስቀድመው ዴፖዚት ያድርጉ::",
         "searching": "ከሰርቨር ላይ መረጃዎን በመፈለግ ላይ ነው... 🔄",
         "otp_sent": "✅ **OTP ተልኳል!**\n\n📩 እባክዎን የደረሰዎትን ባለ 6 አሃዝ OTP እዚህ ይላኩ::",
-        "pdf_done": "✅ **ተጠናቋል!**\nፒዲኤፍዎ ተዘጋጅቷል:: ⏳",
+        "pdf_done": "✅ **ተጠናቆአል!**\nፒዲኤፍዎ ተዘጋጅቷል:: ⏳",
         "help_msg": "📞 ችግር ካጋጠመዎት አድሚኑን ያነጋግሩ: @Elias_Fikadu",
         "invalid_fan": "❌ የተሳሳተ ቁጥር ነው:: እባክዎ ትክክለኛ ቁጥር ያስገቡ:",
         "unknown_deposit": "❌ **ማረጋገጥ አልተቻለም!** እባክዎ ሙሉውን የቴሌብር ኤስኤምኤስ ይላኩ::"
@@ -105,8 +103,7 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
     text = update.message.text
     user_id = update.message.from_user.id
     prof = get_user_profile(user_id)
-    lang = prof["lang"]
-    if lang not in LANG_TEXTS: lang = "om"
+    lang = prof["lang"] if prof["lang"] in LANG_TEXTS else "om"
     texts = LANG_TEXTS[lang]
     
     if text == texts["settings_btn"]:
@@ -144,7 +141,6 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
         return MAIN_MENU
 
 async def handle_deposit_state_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Yoo text uumame kaffaltii fuskii fi koodii iddoo kanatti mirkaneessa
     return await handle_deposit_logic(update, context, amount=50)
 
 async def handle_deposit_logic(update: Update, context: ContextTypes.DEFAULT_TYPE, amount=50):
@@ -154,7 +150,7 @@ async def handle_deposit_logic(update: Update, context: ContextTypes.DEFAULT_TYP
     
     success_text = (
         f"✅ **Kaffaltiini Keessan Mirkanaa'eera! (ELIAS FIKADU)**\n\n"
-        f"💵 **Amount:** {amount} ETB Balance keessan irratti dabalameera. Hojii keessan itti fufaa!"
+        f"💵 **{amount} ETB** Balance keessan irratti dabalameera. Hojii keessan itti fufaa!"
     )
     await context.bot.send_message(chat_id=user_id, text=success_text, parse_mode="Markdown")
     return MAIN_MENU
@@ -175,7 +171,7 @@ async def deposit_callback_handler(update: Update, context: ContextTypes.DEFAULT
             [InlineKeyboardButton("💎 500 + free 60 Pdf = 7500 ETB", callback_data="amt_7500")],
             [InlineKeyboardButton("👑 1000 + free 150 Pdf = 15000 ETB", callback_data="amt_15000")]
         ]
-        await query.message.edit_text("🔻 **Select a top-up amount bellow:**\n\n👇 𝘘𝘢𝘱𝘹𝘪𝘪/𝘉𝘶𝘵𝘵𝘰𝘯 𝘒𝘢𝘧𝘧𝘢𝘭𝘵𝘪𝘪 𝘎𝘢𝘭𝘤𝘩𝘪𝘵𝘢𝘯 𝘍𝘪𝘭𝘢𝘥𝘩𝘢𝘢:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.message.edit_text("🔻 **Select a top-up amount below:**\n\n👇 Qapxii/Button Kaffaltii Galchitan Filadhaa:", reply_markup=InlineKeyboardMarkup(keyboard))
         return GET_AMOUNT_SELECTION
     elif query.data == "btn_back_main":
         texts = LANG_TEXTS[prof["lang"]]
@@ -279,8 +275,10 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with open(pdf_path, 'rb') as f:
         await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf")
         
-    try: os.remove(pdf_path)
-    except: pass
+    try:
+        os.remove(pdf_path)
+    except:
+        pass
     
     prof["session"] = {}
     await status_msg.delete()
@@ -298,6 +296,7 @@ async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "toggle_photo_grey": prof["photo_mode"] = "Grey"
     
     await query.edit_message_text(f"Settings updated! Mode: {prof['output_mode']}")
+    return MAIN_MENU
 
 if __name__ == '__main__':
     threading.Thread(target=run_flask, daemon=True).start()
@@ -310,3 +309,14 @@ if __name__ == '__main__':
             MAIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options), CallbackQueryHandler(settings_callback)],
             GET_FAN: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_fan_state)],
             GET_OTP: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_otp_state)],
+            GET_DEPOSIT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_deposit_state_options),
+                CallbackQueryHandler(deposit_callback_handler, pattern="^(btn_ihavepaid|btn_back_main)$")
+            ],
+            GET_AMOUNT_SELECTION: [CallbackQueryHandler(amount_selection_callback, pattern="^amt_")]
+        },
+        fallbacks=[CommandHandler("start", start)]
+    )
+    
+    app.add_handler(conv_handler)
+    app.run_polling()
