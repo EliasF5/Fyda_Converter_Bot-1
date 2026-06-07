@@ -1,8 +1,0 @@
-flask
-python-telegram-bot==20.8
-playwright
-reportlab
-Flask
-python-telegram-bot
-playwright
-reportlab
