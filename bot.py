@@ -23,7 +23,6 @@ def run_flask():
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# Token kee kan kanaan duraa
 BOT_TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
 
 START_LANG, MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT, GET_AMOUNT_SELECTION = range(6)
@@ -209,6 +208,7 @@ async def handle_fan_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["current_fan"] = fan_number
     return await process_fan_input(update, context, fan_number)
 
+# ===== IDDOO KANATTI GALMAA'E =====
 async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, fan_number):
     user_id = update.message.from_user.id
     prof = get_user_profile(user_id)
@@ -224,7 +224,10 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     browser = None
     try:
         p = await async_playwright().start()
-        browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"])
+        browser = await p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
+        )
         page = await browser.new_page()
         
         await page.goto("https://fayda.gov.et/portal", timeout=15000)
