@@ -11,7 +11,6 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
 
-# Flask Server for Render hosting
 flask_app = Flask('')
 
 @flask_app.route('/')
@@ -140,7 +139,19 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     status_msg = await update.message.reply_text("🌐 Connecting to Fayda Server... 🔄")
     
     p = await async_playwright().start()
-    browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"])
+    
+    # Render irratti Chromium akka sirriitti argamuuf qajeelfama dabalataa
+    try:
+        browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"])
+    except Exception as launch_error:
+        logging.error(f"Chromium launch failed, trying with system path: {launch_error}")
+        # Yoo kalleattiin argamuu dide, bakka inni fe'ame itti agarsiisna
+        browser = await p.chromium.launch(
+            headless=True, 
+            executable_path="/opt/render/.cache/ms-playwright/chromium-1148/chrome-linux/chrome",
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"]
+        )
+        
     context_page = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
     page = await context_page.new_page()
     await stealth_async(page)
