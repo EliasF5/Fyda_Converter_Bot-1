@@ -9,7 +9,6 @@ from playwright.async_api import async_playwright
 from playwright_stealth import stealth_async
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-from reportlab.lib.colors import HexColor
 
 # Flask Server for Render hosting
 flask_app = Flask('')
@@ -141,40 +140,21 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     
     p = await async_playwright().start()
     
-    # Target Closed/Crash jalaa ittisuuf argumentota eegumsaa asitti dabalaniiru
     try:
+        # Brawsaarii salphatti akka banuuf qajeelfama salphaa
         browser = await p.chromium.launch(
             headless=True, 
-            args=[
-                "--no-sandbox", 
-                "--disable-setuid-sandbox", 
-                "--disable-gpu", 
-                "--disable-dev-shm-usage",
-                "--no-zygote",
-                "--single-process"
-            ]
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"]
         )
-    except Exception as launch_error:
-        logging.error(f"Chromium launch failed, trying with explicit path: {launch_error}")
-        browser = await p.chromium.launch(
-            headless=True, 
-            executable_path="/opt/render/.cache/ms-playwright/chromium-1148/chrome-linux/chrome",
-            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
+        context_page = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
+        page = await context_page.new_page()
+        await stealth_async(page)
         
-    context_page = await browser.new_context(
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        viewport={"width": 1280, "height": 800}
-    )
-    page = await context_page.new_page()
-    await stealth_async(page)
-    
-    try:
-        # Timeout fi wait_until sirreessuun crash uumamuu hir'isa
         await page.goto("https://fayda.gov.et/portal", timeout=45000, wait_until="domcontentloaded")
         await asyncio.sleep(2)
         
-        # Input gubbaa guutuuf selector eeggannoo qabu
         await page.locator("input[name='fan']").fill(fan_number)
         await page.locator("button[type='submit']").click()
         await asyncio.sleep(4)
@@ -189,7 +169,7 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             await p.stop()
         except:
             pass
-        await status_msg.edit_text("❌ **Sarvariin Fayda deebii dhorkateera ykn Weebsaayitiin dhuunfameera.**\nMaaloo daqiiqaa muraasa booda irra deebi'ii yaali.")
+        await status_msg.edit_text("❌ **Sarvariin Fayda deebii dhorkateera.**\nMaaloo daqiiqaa muraasa booda irra deebi'ii yaali.")
         prof["session"] = {}
         return MAIN_MENU
 
@@ -211,7 +191,7 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await page.locator("button[type='submit']").click()
         await asyncio.sleep(5)
         
-        final_name = "User Official Name" # Bakka kanatti inner_text() dabalachuu dandeessa
+        final_name = "User Official Name"
         prof["balance"] -= 35 
     except Exception as e:
         await status_msg.edit_text("❌ **OTP Dogoggora ykn sarvariin addaan cite!**")
@@ -229,7 +209,7 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
 
-    safe_name = "Fayda_ID"
+    safe_name = f"Fayda_ID_{user_id}"
     pdf_path = f"{safe_name}.pdf"
     c = canvas.Canvas(pdf_path, pagesize=letter)
     c.drawString(120, 600, f"FAN/FIN: {fan_number}")
