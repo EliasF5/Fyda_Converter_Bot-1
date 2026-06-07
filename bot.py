@@ -141,10 +141,10 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     p = await async_playwright().start()
     
     try:
-        # Brawsaarii salphatti akka banuuf qajeelfama salphaa
+        # Ofumaan akka brawsaarii default ta'e kaasu qofa ajajne
         browser = await p.chromium.launch(
             headless=True, 
-            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"]
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
         )
         context_page = await browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -191,7 +191,6 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await page.locator("button[type='submit']").click()
         await asyncio.sleep(5)
         
-        final_name = "User Official Name"
         prof["balance"] -= 35 
     except Exception as e:
         await status_msg.edit_text("❌ **OTP Dogoggora ykn sarvariin addaan cite!**")
@@ -218,7 +217,7 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     c.save()
     
     with open(pdf_path, 'rb') as f:
-        await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf")
+        await update.message.reply_document(document=f, filename= f"{safe_name}@National_idpdfbot.pdf")
         
     try: os.remove(pdf_path)
     except: pass
