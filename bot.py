@@ -33,7 +33,7 @@ user_data = {}
 def get_user_profile(user_id):
     if user_id not in user_data:
         user_data[user_id] = {
-            "balance": 100,  # Default welcome balance for testing
+            "balance": 100,  # Welcome balance
             "output_mode": "PDF + ID",
             "photo_mode": "Grey",
             "template": "Template A",
@@ -129,7 +129,7 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("Enter your 12-digit FIN or 16-digit FAN number:")
         return GET_FAN
     elif text == "📞 Help":
-        await update.message.reply_text("📞 Rakkon yoo uumame Admin qunnamaa: @Urjii_Admin\n(Maaloo lakkofsa kaffaltii keessanii sirriitti galchaa).")
+        await update.message.reply_text("📞 Rakkon yoo uumame Admin qunnamaa: @Urjii_Admin")
         return MAIN_MENU
     else:
         await update.message.reply_text("Please select a valid option from the menu.")
@@ -158,25 +158,22 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     page = await browser.new_page()
     
     try:
-        # Gara sarvarii Fayda deema
         await page.goto("https://fayda.gov.et/portal", timeout=20000)
         await page.fill("input[name='fan']", fan_number)
         await page.click("button[type='submit']")
         await asyncio.sleep(3)
         
-        # Yoo milkaa'e ragaa session keessa kaaya
-        prof["session"] = {"playwright": p, "browser": browser, "page": page, "fan": fan_number, "mock": False}
+        prof["session"] = {"playwright": p, "browser": browser, "page": page, "fan": fan_number}
         await status_msg.edit_text("✅ **OTP sent successfully!**\n\n📩 Please **send the OTP digits** here (6 digits).")
         return GET_OTP
     except Exception as e:
-        # Yoo sarvariin deebii dhorkate asitti dhaaba, herrega hin hir'isu
         logging.error(f"Fayda Portal Error: {e}")
         try:
             await browser.close()
             await p.stop()
         except:
             pass
-        await status_msg.edit_text("❌ **Dogoggora: Sarvarii Fayda irraa deebiin hin jiru.**\nMaaloo daqiiqaa muraasa booda irra deebi'ii yaali. Herregni keessan hin hir'anne.")
+        await status_msg.edit_text("❌ **Dogoggora: Sarvarii Fayda irraa deebiin hin jiru.**\nMaaloo daqiiqaa muraasa booda irra deebi'ii yaali. Kaffaltiin hin hir'anne.")
         prof["session"] = {}
         return MAIN_MENU
 
@@ -186,7 +183,7 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prof = get_user_profile(user_id)
     
     if "page" not in prof["session"]:
-        await update.message.reply_text("❌ Session expired. Maaloo lakkofsa FAN keessan deebisaa galchaa.")
+        await update.message.reply_text("❌ Session expired. Maaloo deebisaa yaala.")
         return MAIN_MENU
 
     status_msg = await update.message.reply_text("✅ **OTP Processing...** ⏳")
@@ -200,14 +197,11 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await page.click("button[type='submit']")
         await asyncio.sleep(4)
         
-        # Maqaa dhugaa sarvarii irraa fuda
         final_name = await page.locator("#user-name").inner_text()
-        
-        # Yoo milkaa'e qofa herrega hir'isa
         prof["balance"] -= 35 
     except Exception as e:
         logging.error(f"OTP verification failed: {e}")
-        await status_msg.edit_text("❌ **OTP dogoggora ykn sarvariin citeera.** Kaffaltiin keessan hin hir'anne. Maaloo irra deebi'aa yaala.")
+        await status_msg.edit_text("❌ **OTP dogoggora ykn sarvariin citeera.** Kaffaltiin keessan hin hir'anne.")
         try:
             await prof["session"]["browser"].close()
             await prof["session"]["playwright"].stop()
@@ -226,15 +220,8 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pdf_path = f"{safe_name}.pdf"
     
     c = canvas.Canvas(pdf_path, pagesize=letter)
-    c.setStrokeColor(HexColor("#0056b3"))
-    c.setFillColor(HexColor("#f8f9fa"))
     c.rect(100, 450, 380, 220, stroke=1, fill=1)
-    c.setFillColor(HexColor("#0056b3"))
-    c.rect(100, 640, 380, 30, stroke=0, fill=1)
-    c.setFillColor(HexColor("#ffffff"))
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(150, 650, "FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA")
-    c.setFillColor(HexColor("#000000"))
     c.drawString(120, 600, f"Name: {final_name}")
     c.drawString(120, 570, f"FAN/FIN: {fan_number}")
     c.drawString(120, 540, "Status: Verified Original")
@@ -242,18 +229,8 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     c.save()
     
     with open(pdf_path, 'rb') as f:
-        await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf", caption=f"👤 {final_name}\nDownloaded from @National_idpdfbot")
+        await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf", caption=f"👤 {final_name}")
         
-    try:
-        with open(pdf_path, 'rb') as f:
-            await update.message.reply_photo(photo=f, caption=f"Normal [{final_name}].png")
-        with open(pdf_path, 'rb') as f:
-            await update.message.reply_photo(photo=f, caption=f"Mirror [{final_name}].png")
-        with open(pdf_path, 'rb') as f:
-            await update.message.reply_photo(photo=f, caption=f"A4 (Color Mirror) [{final_name}].png")
-    except Exception as e:
-        logging.error(f"Error sending photos: {e}")
-    
     try: 
         os.remove(pdf_path)
     except: 
@@ -267,9 +244,8 @@ async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tx_id = update.message.text.strip() if update.message.text else "Screenshot"
     user_id = update.message.from_user.id
     prof = get_user_profile(user_id)
-    
     prof["balance"] += 50
-    await update.message.reply_text(f"✅ **Kaffaltiin Keessan Mirkanaa'eera!**\nTransaction ID: {tx_id}\n50 ETB Balance keessan irratti dabalameera. Hojii keessan itti fufaa!")
+    await update.message.reply_text(f"✅ **Kaffaltiin Keessan Mirkanaa'eera!**\nTransaction ID: {tx_id}\n50 ETB Dabalameera.")
     return MAIN_MENU
 
 async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -286,12 +262,7 @@ async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.delete()
         return MAIN_MENU
         
-    settings_text = (
-        f"**Output settings:**\n"
-        f"FIN/FCN output: {prof['output_mode']}\n"
-        f"Photo mode: {prof['photo_mode']}\n"
-        f"Prices: PDF Only 15 ETB, PDF + ID 35 ETB."
-    )
+    settings_text = f"**Output settings:**\nFIN/FCN output: {prof['output_mode']}\nPhoto mode: {prof['photo_mode']}"
     keyboard = [
         [InlineKeyboardButton("PDF Only", callback_data="toggle_out_pdf"), InlineKeyboardButton(f"✅ {prof['output_mode']}", callback_data="toggle_out_both")],
         [InlineKeyboardButton("Color", callback_data="toggle_photo_color"), InlineKeyboardButton(f"✅ {prof['photo_mode']}", callback_data="toggle_photo_grey")],
@@ -315,5 +286,5 @@ if __name__ == '__main__':
     )
     
     app.add_handler(conv_handler)
-    print("Bot starting up with custom Telebirr account...")
+    print("Bot starting up...")
     app.run_polling()
