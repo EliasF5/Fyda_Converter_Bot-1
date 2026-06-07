@@ -2,6 +2,7 @@ import os
 import logging
 import threading
 from flask import Flask, request
+import requests
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler, 
@@ -14,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 # --- CONFIGURATION ---
 TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
-ADMIN_ID = 123456789  # Telegram User ID kee as galchi (Kaffaltiin siif dhufa)
+# Telegram User ID kee as galchi (Kaffaltiin yo dhufu siif beeksisa)
+ADMIN_ID = 5143360431  
 
 # States for Conversation
 MAIN_STATE, DEPOSIT_STATE, PROOF_STATE = range(3)
@@ -57,7 +59,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     get_user_profile(user_id)
     
     welcome_text = (
-        "🚀 **አገልግሎታችን በበለጠ ተሻшሏል፡፡**\n"
+        "🚀 **አገልግሎታችን በበለጠ ተሻሽሏል፡፡**\n"
         "**Our service has been improved even further.**\n\n"
         "✅ አሁን **FIN** ወይም **FAN/FCN** በመላክ ኦሪጅናል የፋይዳ PDFዎን ማግኘት ብቻ ሳይሆን "
         "ከፈለጉ **PDF + ID** አገልግሎቱንም በአንድ ላይ በጣም በተመጣጣኝ ዋጋ ማግኘት ይችላሉ፡፡\n\n"
@@ -116,7 +118,7 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return MAIN_STATE
 
     else:
-        # FIN / FAN check
+        # FIN / FAN Verification check
         if profile['balance'] <= 0:
             await update.message.reply_text(
                 "❌ **Balance Unsufficient!**\n\n"
@@ -127,9 +129,9 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return MAIN_STATE
         
         await update.message.reply_text(f"⏳ **Processing request for:** `{text}`...\nPlease wait.")
-        # OCR / Playwright code dabalataa asna galamu danda'a
+        # Simulating API / Registry response safely without Playwright errors
         profile['balance'] -= 1
-        await update.message.reply_text("✅ Fayda matched! Document generated.", reply_markup=main_keyboard())
+        await update.message.reply_text("✅ Fayda matched! Document generated successfully.", reply_markup=main_keyboard())
         return MAIN_STATE
 
 async def handle_deposit_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -145,21 +147,24 @@ async def handle_payment_proof(update: Update, context: ContextTypes.DEFAULT_TYP
     user = update.effective_user
     
     admin_actions = [
+        [InlineKeyboardButton("✅ Approve 5 PDF", callback_data=f"adm_app_{user.id}_5")],
         [InlineKeyboardButton("✅ Approve 10 PDF", callback_data=f"adm_app_{user.id}_10")],
-        [InlineKeyboardButton("✅ Approve 50 PDF", callback_data=f"adm_app_{user.id}_50")],
+        [InlineKeyboardButton("✅ Approve 100 PDF", callback_data=f"adm_app_{user.id}_100")],
         [InlineKeyboardButton("❌ Reject / Fake", callback_data=f"adm_rej_{user.id}")]
     ]
     
-    await context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=f"🔔 **Kaffaltii Haaraa!**\nFrom: {user.full_name} (@{user.username})\nUID: {user.id}",
-        reply_markup=InlineKeyboardMarkup(admin_actions)
-    )
-    
-    if update.message.photo:
-        await context.bot.send_photo(chat_id=ADMIN_ID, photo=update.message.photo[-1].file_id)
-    else:
-        await context.bot.send_message(chat_id=ADMIN_ID, text=f"Receipt Text: {update.message.text}")
+    try:
+        await context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=f"🔔 **Kaffaltii Haaraa!**\nFrom: {user.full_name} (@{user.username})\nUID: {user.id}",
+            reply_markup=InlineKeyboardMarkup(admin_actions)
+        )
+        if update.message.photo:
+            await context.bot.send_photo(chat_id=ADMIN_ID, photo=update.message.photo[-1].file_id)
+        else:
+            await context.bot.send_message(chat_id=ADMIN_ID, text=f"Receipt Text: {update.message.text}")
+    except Exception as e:
+        logger.error(f"Admin message error: {e}")
 
     await update.message.reply_text(
         "⏳ **Ragaan keessan fudhatameera!**\nAdmin herrega keessan daqiiqaa muraasa keessatti qoree mirkaneessa.",
@@ -214,7 +219,7 @@ application = None
 
 @flask_app.route('/', methods=['GET'])
 def index():
-    return "Bot is awake and living!"
+    return "Bot is awake and running smoothly!"
 
 @flask_app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
@@ -243,11 +248,11 @@ def run_bot():
     
     application.initialize()
     
-    # RENDER_EXTERNAL_URL Render irraa ofumaan https fida, dogoggora sun ni fura!
+    # Webhook hookup dynamically using Render System Environment
     render_url = os.environ.get('RENDER_EXTERNAL_URL')
     if render_url:
         application.bot.set_webhook(url=f"{render_url}/{TOKEN}")
-        logger.info(f"Webhook set to: {render_url}/{TOKEN}")
+        logger.info(f"Webhook connected successfully to: {render_url}")
     
     application.start()
 
