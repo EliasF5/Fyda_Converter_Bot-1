@@ -11,7 +11,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
 
-# 1. Flask setup to bind correctly to Render's dynamic ports
+# 1. Web Service Setup for Render
 flask_app = Flask('')
 
 @flask_app.route('/')
@@ -28,8 +28,6 @@ BOT_TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
 
 MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT = range(4)
 user_data = {}
-
-# Setti kaffaltii qofaa (Kaffaltiiwwan duraan mirkanaa'an akka irra daddabalamee hin gatamneef)
 PROCESSED_TXNS = set()
 
 def get_user_profile(user_id):
@@ -53,20 +51,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
         "👋 **Welcome!**\n\n"
         "Send your **FCN/FAN** (16 digits).\n\n"
-        "I will request an **OTP**, then you send the OTP here and I will deliver your Original Fayda PDF.\n\n"
         "━━━━━━━━━━━━━━━━━━\n"
         "ℹ️ **ኦሪጅናል የፋይዳ ፒዲኤፍ ለማግኘት**\n\n"
         "FIN (ባለ 12 ዲጂት) ወይም FCN/FAN (ባለ 16 ዲጂት) ይላኩ::\n"
-        "ከዛም በተመዘገቡበት ስልክ OTP ይደርሶታል፤ ቀጥሎ የደረሰዎትን OTP በፈጣን እዚህ ይላኩት:: "
-        "ቦቱ ኦሪጅናል የፋይዳ ፒዲኤፍዎን ወዲያውኑ ይልክልዎታል::\n\n"
+        "ከዛም በተመዘገቡበት ስልክ OTP ይደርሶታል፤ ቀጥሎ የደረሰዎትን OTP በፈጣን እዚህ ይላኩት::\n\n"
         "━━━━━━━━━━━━━━━━━━\n"
-        "💰 **በቴሌብር ወደ ቦቱ ገንዘብ ገቢ ለማድረግ እነዚህን ቅደም ተከተሎች ይከተሉ:**\n"
-        "1. Deposit የሚለውን ይጫኑ\n"
-        "2. የቴሌብር ቁጥር በመምረጥ ገንዘብ ገቢ ያድርጉ\n"
-        "3. የከፈሉበትን Transaction ID ወይም SMS (ፅሁፍ) kooppii godhaanii እዚህ ይላኩ\n\n"
+        "💰 **በቴሌብር ወደ ቦቱ ገንዘብ ገቢ ለማድረግ (Deposit):**\n"
+        "1. '💳 Deposit' kan jedhu cuqaasaa\n"
+        "2. Lakkofsa bilbilaa kennameetti Birrii ergaa\n"
+        "3. **SMS** kaffaltii Telebirr guutuu isaa kooppii godhaanii asitti naqaatii ergaa. Botiin ofumaan dubbisee herrega keessan dubbisa.\n\n"
         "💵 Use **Balance** to check your wallet.\n"
-        "💳 Use **Deposit** to top-up.\n"
-        "📞 Contact admin if you need help."
+        "💳 Use **Deposit** to top-up."
     )
     
     keyboard = [
@@ -86,20 +81,14 @@ async def show_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"**Output settings:**\n"
         f"FIN/FCN output: {prof['output_mode']}\n"
         f"Photo mode: {prof['photo_mode']}\n"
-        f"Template: {prof['template']}\n"
-        f"Oval cut: {prof['oval_cut']}\n"
-        f"Template quality: {prof['quality']}\n"
-        f"Merge on A4: {prof['merge_a4']}\n"
         f"Prices: PDF Only 15 ETB, PDF + ID 35 ETB."
     )
-    
     keyboard = [
         [InlineKeyboardButton("PDF Only", callback_data="toggle_out_pdf"), InlineKeyboardButton(f"✅ {prof['output_mode']}", callback_data="toggle_out_both")],
         [InlineKeyboardButton("Color", callback_data="toggle_photo_color"), InlineKeyboardButton(f"✅ {prof['photo_mode']}", callback_data="toggle_photo_grey")],
         [InlineKeyboardButton("Back", callback_data="menu_back")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(settings_text, reply_markup=reply_markup, parse_mode="Markdown")
+    await update.message.reply_text(settings_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
     return MAIN_MENU
 
 async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -119,7 +108,7 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
             "የፈለጉትን የገንዘብ መጠን ወደዚህ የቴሌብር አካውንት ያስገቡ:\n"
             "📱 **Telebirr Number:** `0913701367`\n"
             "👤 **Account Name:** ELIAS FIKADU\n\n"
-            "ከከፈሉ በኋላ, የቴሌብር የክፍያ መልዕክት (SMS) guutuu isaa kooppii godhaanii asitti ergaa ykn **Transaction ID** qofa barreessaa."
+            "⚠️ **ከከፈሉ በኋላ:** የቴሌብር የክፍያ መልዕክት (**SMS**) guutuu isaa asitti kooppii godhaanii ergaa. Botiin ofumaan kaffaltii keessan ni mirkaneessa!"
         )
         await update.message.reply_text(deposit_instruction, parse_mode="Markdown")
         return GET_DEPOSIT
@@ -156,7 +145,6 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         return MAIN_MENU
         
     status_msg = await update.message.reply_text("Sarvarii irraa ragaa keessan barbaadaa jira... 🔄")
-    
     p = await async_playwright().start()
     browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--single-process"])
     page = await browser.new_page()
@@ -183,7 +171,6 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prof = get_user_profile(user_id)
     
     status_msg = await update.message.reply_text("✅ **Done!**\n\nYour PDF has been delivered. ⏳")
-    
     final_name = "Belay Mokonin Guta"
     fan_number = prof["session"].get("fan", "2391630461096705")
     
@@ -194,8 +181,7 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await page.click("button[type='submit']")
             await asyncio.sleep(3)
             final_name = await page.locator("#user-name").inner_text()
-        except:
-            pass
+        except: pass
         finally:
             try:
                 await prof["session"]["browser"].close()
@@ -203,7 +189,6 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except: pass
 
     prof["balance"] -= 35 
-    
     safe_name = final_name.replace(" ", "_")
     pdf_path = f"{safe_name}.pdf"
     
@@ -226,10 +211,6 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with open(pdf_path, 'rb') as f:
         await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf", caption=f"👤 {final_name}\nDownloaded from @National_idpdfbot")
         
-    await update.message.reply_photo(photo=open(pdf_path, 'rb'), caption=f"Normal [{final_name}].png")
-    await update.message.reply_photo(photo=open(pdf_path, 'rb'), caption=f"Mirror [{final_name}].png")
-    await update.message.reply_photo(photo=open(pdf_path, 'rb'), caption=f"A4 (Color Mirror) [{final_name}].png")
-    
     try: os.remove(pdf_path)
     except: pass
     
@@ -237,37 +218,35 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await status_msg.delete()
     return MAIN_MENU
 
-# AUTOMATED TELEBIRR VERIFICATION (Elias Fikadu)
+# TELEBIRR AUTOMATIC VERIFICATION FOR ELIAS FIKADU
 async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     prof = get_user_profile(user_id)
     text = update.message.text if update.message.text else ""
-    
-    # 1. Dubbisuu SMS Telebirr (Elias Fikadu fi dabalata herregaa)
     text_upper = text.upper()
     
-    # Barbaacha Transaction ID (Fkn: T7A3BC12, ykn lakkofsa qofa)
+    # 1. Barbaacha Transaction ID (Fkn: T7A3BC12, ykn kan of keessaa qabu)
     txn_match = re.search(r'\b([A-Z0-9]{8,12})\b', text_upper)
-    txn_id = txn_match.group(1) if txn_match else str(user_id) + "_" + str(int(asyncio.get_event_loop().time()))
     
-    if txn_id in PROCESSED_TXNS:
-        await update.message.reply_text("❌ **Dogoggora:** Transaction ID kanaan kaffaltiin dursa fudhatameera!")
-        return MAIN_MENU
-
-    # Ofumaan dubbisuu birrii SMS irraa (Fkn: "received 50.00 ETB", "birr 100 kaffalameera")
-    amount = 50 # Default amount yoo SMS hin argamne
-    amount_match = re.search(r'(?:BR|ETB|BIRR)\s*([\d\.]+)', text_upper) or re.search(r'([\d\.]+)\s*(?:BR|ETB|BIRR)', text_upper)
-    if amount_match:
-        try:
-            amount = int(float(amount_match.group(1)))
-        except: pass
-
-    # Mirkaneessa Maqaa "Elias Fikadu" ykn unka telebirr sirrii ta'uu isaa
-    if "ELIAS" in text_upper or "FIKADU" in text_upper or "RECEIVED" in text_upper or txn_match:
+    if txn_match:
+        txn_id = txn_match.group(1)
+        if txn_id in PROCESSED_TXNS:
+            await update.message.reply_text("❌ **Dogoggora:** Transaction ID kanaan duraan kaffaltiin fudhatameera!")
+            return MAIN_MENU
+            
+        # 2. Birrii SMS keessa jiru ofumaan herreguu
+        amount = 50  # Default yoo herregni SMS keessatti argamuu dide
+        amount_match = re.search(r'(?:BR|ETB|BIRR)\s*([\d\.]+)', text_upper) or re.search(r'([\d\.]+)\s*(?:BR|ETB|BIRR)', text_upper)
+        if amount_match:
+            try:
+                amount = int(float(amount_match.group(1)))
+            except: pass
+            
         PROCESSED_TXNS.add(txn_id)
         prof["balance"] += amount
+        
         await update.message.reply_text(
-            f"✅ **Kaffaltiin Keessan Mirkanaa'eera! (Telebirr Verified)**\n\n"
+            f"✅ **Kaffaltiin Keessan Ofumaan Mirkanaa'eera!**\n\n"
             f"👤 **Account:** Elias Fikadu\n"
             f"🆔 **Txn ID:** `{txn_id}`\n"
             f"💵 **Amount:** {amount} ETB\n\n"
@@ -275,9 +254,8 @@ async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
     else:
-        # Yoo unkaan hin beekamne herrega default itti daballa
-        prof["balance"] += 50
-        await update.message.reply_text(f"✅ **Kaffaltiin Keessan Mirkanaa'eera!**\n50 ETB Balance keessan irratti dabalameera. Hojii keessan itti fufaa!")
+        # Yoo ergaan sun SMS kaffaltii fakkaachuu dide
+        await update.message.reply_text("❌ **Mirkaneessuun hin danda'amne!** Maaloo SMS kaffaltii Telebirr guutuu isaa kooppii godhaanii ergaa ykn lakkofsa Transaction ID qofa sirriitti barreessaa.")
         
     return MAIN_MENU
 
@@ -313,12 +291,12 @@ if __name__ == '__main__':
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start), MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options), MessageHandler(filters.PHOTO, handle_deposit)],
+        entry_points=[CommandHandler("start", start), MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options)],
         states={
             MAIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options), CallbackQueryHandler(settings_callback)],
             GET_FAN: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_fan_state)],
             GET_OTP: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_otp_state)],
-            GET_DEPOSIT: [MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, handle_deposit)]
+            GET_DEPOSIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_deposit)]
         },
         fallbacks=[CommandHandler("start", start)]
     )
