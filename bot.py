@@ -23,19 +23,15 @@ def run_flask():
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# Token kee as galchi
 BOT_TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
 
-# Conversation states
 MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT = range(4)
-
-# Database
 user_data = {}
 
 def get_user_profile(user_id):
     if user_id not in user_data:
         user_data[user_id] = {
-            "balance": 100,  # Balance jalqabaa firiidhaaf
+            "balance": 100, 
             "output_mode": "PDF + ID",
             "photo_mode": "Grey",
             "template": "Template A",
@@ -101,7 +97,7 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
     if "Settings" in text or "ማስተካከያ" in text:
         await show_settings(update, context)
         return MAIN_MENU
-    elif "Balance" in text or "Common" in text or "የአካውንት" in text or "የሂሳብ" in text or "💰" in text and "Balance" in text:
+    elif "Balance" in text or "ሂሳብ" in text or "💰" in text:
         await update.message.reply_text(f"💵 **Your Balance / የርስዎ ሂሳብ:** {prof['balance']} ETB", parse_mode="Markdown")
         return MAIN_MENU
     elif "Deposit" in text or "መሙያ" in text:
@@ -110,7 +106,7 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
             "የፈለጉትን የገንዘብ መጠን ወደዚህ የቴሌብር አካውንት ያስገቡ:\n"
             "📱 **Telebirr Number:** `0913701367`\n"
             "👤 **Account Name:** ELIAS FIKADU\n\n"
-            "Kaffaltii erga raawwattanii booda, **Transaction ID** (SMS) ykn **Screenshot** (Fakkii) botii kanaaf kallaattiin ergaa!"
+            "Kaffaltii erga raawwattanii booda, **Transaction ID** (SMS) ykn **Screenshot** botii kanaaf kallaattiin ergaa!"
         )
         await update.message.reply_text(deposit_instruction, parse_mode="Markdown")
         return GET_DEPOSIT
@@ -118,7 +114,7 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("📥 Maaloo lakkofsa FIN (12 digits) ykn FAN (16 digits) galchaa:")
         return GET_FAN
     elif "Help" in text or "እርዳታ" in text:
-        await update.message.reply_text("📞 Admin Contact: @Urjii_Admin\nRakkina yoo qabaattan as tuqaa dubbisaa.")
+        await update.message.reply_text("📞 Admin Contact: @Urjii_Admin")
         return MAIN_MENU
     elif text.isdigit() and (len(text) == 12 or len(text) == 16):
         return await process_fan_input(update, context, text)
@@ -138,7 +134,7 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     prof = get_user_profile(user_id)
     
     if prof["balance"] < 15:
-        await update.message.reply_text("❌ Balance keessan gahaa miti. Maaloo dursee herrega guuttadhaaa / ሂሳብዎ በቂ አይደለም::")
+        await update.message.reply_text("❌ Balance keessan gahaa miti. Maaloo dursee herrega guuttadhaaa.")
         return MAIN_MENU
         
     status_msg = await update.message.reply_text("🌐 Connecting to Fayda Server... 🔄")
@@ -159,10 +155,10 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         await status_msg.edit_text("✅ **OTP Sent Successfully! / ኦቲፒ ተልኳል!**\n\n📩 Maaloo OTP lakkofsa 6 dhufe asirratti ergaa:")
         return GET_OTP
     except Exception as e:
-        logging.error(f"Fayda Portal Connection Blocked: {e}")
+        logging.error(f"Fayda Connection Error: {e}")
         await browser.close()
         await p.stop()
-        await status_msg.edit_text("❌ **Sarvariin Fayda deebii dhorkateera (Cloudflare Block).**\nMaaloo daqiiqaa muraasa booda irra deebi'ii yaali. Kaffaltiin keessan hin hir'anne.")
+        await status_msg.edit_text("❌ **Sarvariin Fayda deebii dhorkateera.**\nMaaloo daqiiqaa muraasa booda irra deebi'ii yaali.")
         prof["session"] = {}
         return MAIN_MENU
 
@@ -172,7 +168,7 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prof = get_user_profile(user_id)
     
     if "page" not in prof["session"]:
-        await update.message.reply_text("❌ Session Expired! Irra deebi'ii FAN galchi.")
+        await update.message.reply_text("❌ Session Expired! Irra deebi'ii yaali.")
         return MAIN_MENU
 
     status_msg = await update.message.reply_text("🔄 Checking OTP & Generating PDF... ⏳")
@@ -184,12 +180,10 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await page.click("button[type='submit']")
         await asyncio.sleep(5)
         
-        # Maqaa Fayda irraa fudhachuu
         final_name = await page.locator("#user-name").inner_text()
         prof["balance"] -= 35 
     except Exception as e:
-        logging.error(f"OTP Error: {e}")
-        await status_msg.edit_text("❌ **OTP Dogoggora ykn sarvariin addaan cite!** Kaffaltiin keessan hin hir'anne.")
+        await status_msg.edit_text("❌ **OTP Dogoggora ykn sarvariin addaan cite!**")
         await prof["session"]["browser"].close()
         await prof["session"]["playwright"].stop()
         prof["session"] = {}
@@ -201,25 +195,19 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
 
-    # Canvas PDF Generator
     safe_name = final_name.replace(" ", "_")
     pdf_path = f"{safe_name}.pdf"
     c = canvas.Canvas(pdf_path, pagesize=letter)
-    c.setStrokeColor(HexColor("#0056b3"))
-    c.rect(100, 450, 380, 220, stroke=1, fill=0)
     c.drawString(120, 600, f"Name: {final_name}")
     c.drawString(120, 570, f"FAN/FIN: {fan_number}")
-    c.drawString(120, 540, f"Status: Official National ID PDF")
     c.showPage()
     c.save()
     
     with open(pdf_path, 'rb') as f:
-        await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf", caption=f"👤 {final_name}\nDownloaded Successfully!")
+        await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf")
         
-    try: 
-        os.remove(pdf_path)
-    except: 
-        pass
+    try: os.remove(pdf_path)
+    except: pass
         
     prof["session"] = {}
     await status_msg.delete()
@@ -229,7 +217,7 @@ async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     prof = get_user_profile(user_id)
     prof["balance"] += 50
-    await update.message.reply_text("✅ **Kaffaltiin keessan Admin biratti ergamuuf ka'ee jira!**\n50 ETB herrega keessan irratti dabalameera. Hojii keessan itti fufaa!")
+    await update.message.reply_text("✅ **Kaffaltiin keessan fudhatameera!**\n50 ETB Balance keessan irratti dabalameera.")
     return MAIN_MENU
 
 async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
