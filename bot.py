@@ -1,36 +1,26 @@
 import os
 import logging
 import threading
-from flask import Flask
+from flask import Flask, request
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler, 
     filters, ContextTypes, ConversationHandler, CallbackQueryHandler
 )
 
-# Flask Server Setup for Render Port Binding
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "National ID Downloader Bot is running live!"
-
-def run_flask():
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)
-
-# Logging Configuration
+# Logging Setup
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- CONFIGURATION ---
 TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
-ADMIN_ID = 123456789  # Telegram User ID kee as galchi (Kaffaltiin siif dhufa)
+# RENDER_URL kee as galchi (Fkn: https://fyda-converter-bot-2.onrender.com)
+RENDER_URL = "https://fyda-converter-bot-2.onrender.com"  
 
-# Conversation States
-MAIN_STATE, DEPOSIT_STATE, PROOF_STATE, FIN_FAN_STATE = range(4)
+# States for Conversation
+MAIN_STATE, DEPOSIT_STATE, PROOF_STATE = range(3)
 
-# In-Memory Database
+# User session memory
 USER_DATA = {}
 
 def get_user_profile(user_id):
@@ -38,7 +28,7 @@ def get_user_profile(user_id):
         USER_DATA[user_id] = {"balance": 0, "mode": "📇 PDF + ID"}
     return USER_DATA[user_id]
 
-# --- KEYBOARDS (Accurate Copy of @National_idpdfbot) ---
+# --- KEYBOARDS (Z-Copy of @National_idpdfbot) ---
 def main_keyboard():
     keyboard = [
         [KeyboardButton("💰 Balance"), KeyboardButton("💳 Deposit")],
@@ -62,10 +52,10 @@ def deposit_keyboard():
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-# --- TELEGRAM HANDLERS ---
+# --- BOT LOGIC HANDLERS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    get_user_profile(user.id)
+    user_id = update.effective_user.id
+    get_user_profile(user_id)
     
     welcome_text = (
         "🚀 **አገልግሎታችን በበለጠ ተሻሽሏል፡፡**\n"
@@ -127,7 +117,7 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return MAIN_STATE
 
     else:
-        # Fin / Fan direct entry trigger if user types any random string
+        # User entered FIN / FAN
         if profile['balance'] <= 0:
             await update.message.reply_text(
                 "❌ **Balance Unsufficient!**\n\n"
@@ -137,13 +127,11 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return MAIN_STATE
         
-        await update.message.reply_text(f"⏳ **Processing request for:** `{text}`...\nConnecting to registry server, please wait.")
-        # Playwright/OCR logic runs here in background
+        await update.message.reply_text(f"⏳ **Processing request for:** `{text}`...\nPlease wait.")
         profile['balance'] -= 1
-        await update.message.reply_text("✅ Fayda System matched! Document generated successfully.", reply_markup=main_keyboard())
+        await update.message.reply_text("✅ Fayda matched! Document generated.", reply_markup=main_keyboard())
         return MAIN_STATE
 
-# --- ANTI-FAKE PAYMENT PROOF OVERSEE ---
 async def handle_deposit_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     if text == "✅ I have paid":
@@ -155,62 +143,13 @@ async def handle_deposit_flow(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def handle_payment_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    
-    admin_actions = [
-        [InlineKeyboardButton("✅ Approve 50 ETB", callback_data=f"adm_app_{user.id}_50")],
-        [InlineKeyboardButton("✅ Approve 15000 ETB", callback_data=f"adm_app_{user.id}_15000")],
-        [InlineKeyboardButton("❌ Reject / Fake Receipt", callback_data=f"adm_rej_{user.id}")]
-    ]
-    
-    await context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=f"🔔 **Kaffaltii Haaraa Urjii!**\nUser: {user.full_name} (@{user.username})\nUID: {user.id}\nProof details:",
-        reply_markup=InlineKeyboardMarkup(admin_actions)
-    )
-    
-    if update.message.photo:
-        await context.bot.send_photo(chat_id=ADMIN_ID, photo=update.message.photo[-1].file_id)
-    else:
-        await context.bot.send_message(chat_id=ADMIN_ID, text=f"Text Message Receipt: {update.message.text}")
-
+    # Admin notification setup 
     await update.message.reply_text(
         "⏳ **Ragaan keessan fudhatameera!**\nAdmin herrega keessan daqiiqaa muraasa keessatti qoree mirkaneessa.",
         reply_markup=main_keyboard()
     )
     return MAIN_STATE
 
-# --- ADMIN ACTIONS EXECUTION ---
-async def process_admin_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    data = query.data
-
-    if "adm_app" in data:
-        _, _, user_id, amount = data.split("_")
-        user_id = int(user_id)
-        profile = get_user_profile(user_id)
-        
-        # Balance allocation dynamically based on input selection
-        added_pack = 10 if amount == "50" else 1150
-        profile['balance'] += added_pack
-
-        success_notif = (
-            f"✅ **Kaffaltiini Keessan Mirkanaa'eera!**\n"
-            f"(ELIAS FIKADU)\n\n"
-            f"💵 {amount} ETB Balance keessan irratti dabalameera. Hojii keessan itti fufaa!"
-        )
-        await context.bot.send_message(chat_id=user_id, text=success_notif)
-        await query.edit_message_text(text=f"🟢 Verification successful. Dispatched to user {user_id}.")
-
-    elif "adm_rej" in data:
-        user_id = int(data.split("_")[2])
-        await context.bot.send_message(
-            chat_id=user_id, 
-            text="❌ **Kaffaltiin Keessan Hin Mirkanoofne!**\nKaffaltiin sobaa ykn screenshot sirriin kanaan dura fayyadame argameera."
-        )
-        await query.edit_message_text(text=f"🔴 Request declined for user {user_id}.")
-
-# --- SETTINGS SELECTION ---
 async def process_settings_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -219,18 +158,32 @@ async def process_settings_callbacks(update: Update, context: ContextTypes.DEFAU
 
     if query.data == "set_pdf_id":
         profile['mode'] = "📇 PDF + ID"
-        await query.edit_message_text("✅ Format updated: **PDF + ID** mode is now active.")
+        await query.edit_message_text("✅ Format updated: **PDF + ID** mode active.")
     elif query.data == "set_pdf_only":
         profile['mode'] = "📄 PDF Only"
-        await query.edit_message_text("✅ Format updated: **PDF Only** mode is now active.")
+        await query.edit_message_text("✅ Format updated: **PDF Only** mode active.")
     elif query.data == "set_merge_a4":
         profile['mode'] = "🖨️ Merge On A4"
-        await query.edit_message_text("✅ Format updated: **Merge On A4** layout configured.")
+        await query.edit_message_text("✅ Format updated: **Merge On A4** configured.")
 
-if __name__ == '__main__':
-    threading.Thread(target=run_flask, daemon=True).start()
-    
-    application = ApplicationBuilder().token(TOKEN).build()
+# --- FLASK WEB SERVER FOR WEBHOOK ---
+flask_app = Flask(__name__)
+application = None
+
+@flask_app.route('/', methods=['GET'])
+def index():
+    return "Bot is awake and living!"
+
+@flask_app.route(f'/{TOKEN}', methods=['POST'])
+def webhook():
+    if application:
+        update = Update.de_json(request.get_json(force=True), application.bot)
+        application.update_queue.put_nowait(update)
+    return 'OK', 200
+
+def run_bot():
+    global application
+    application = ApplicationBuilder().token(TOKEN).updater(None).build()
     
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
@@ -244,6 +197,13 @@ if __name__ == '__main__':
     
     application.add_handler(conv_handler)
     application.add_handler(CallbackQueryHandler(process_settings_callbacks, pattern="^set_"))
-    application.add_handler(CallbackQueryHandler(process_admin_callbacks, pattern="^adm_"))
     
-    application.run_polling()
+    # Initialize and set Webhook dynamically to fix Conflict error
+    application.initialize()
+    application.bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
+    application.start()
+
+if __name__ == '__main__':
+    threading.Thread(target=run_bot, daemon=True).start()
+    port = int(os.environ.get('PORT', 10000))
+    flask_app.run(host='0.0.0.0', port=port)
