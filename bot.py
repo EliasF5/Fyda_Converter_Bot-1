@@ -16,7 +16,7 @@ flask_app = Flask('')
 
 @flask_app.route('/')
 def home():
-    return "Bot is running live and healthy with multi-language support!"
+    return "Bot is running live and healthy with multi-language support! Developed for Elias Fikadu."
 
 def run_flask():
     port = int(os.environ.get('PORT', 10000))
@@ -26,32 +26,32 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 BOT_TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
 
-START_LANG, MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT = range(5)
+START_LANG, MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT, GET_AMOUNT_SELECTION = range(6)
 user_data = {}
 PROCESSED_TXNS = set()
 
 LANG_TEXTS = {
     "om": {
-        "welcome": "👋 **Bagaa Gammaddan!**\n\nMaaloo lakkoofsa keessan **FIN (12 digits)** ykn **FAN (16 digits)** ergaa.\n\nNational ID Original PDF keessan isiniif ijaara.",
+        "welcome": "👋 **Baga nagaan dhuftan!**\n\nMaaloo lakkoofsa **FIN (12 digits)** ykn **FAN (16 digits)** keessan naaf ergaa.\nNational ID Original PDF keessan isiniif ijaara.",
         "deposit_btn": "💳 Deposit", "balance_btn": "💰 Balance", "settings_btn": "⚙️ Settings", "help_btn": "📞 Help", "send_fan_btn": "🔑 FAN / FIN Ergi",
-        "deposit_inst": "💰 **Mameerii Herrega Guuttachuu (Telebirr):**\n\nBirrii kaffaltii gara lakkofsa telebirr kanaatti ergaa:\n📱 **Telebirr:** `0913701367`\n👤 **Maqaa:** URJII\n\n⚠️ **Erga kaffaltanii booda:** SMS kaffaltii Telebirr guutuu isaa kooppii godhaanii asitti ergaa ykn button **'✅ I have paid'** jedhu tuqaa.",
+        "deposit_inst": "💰 **Mameerii Herrega Guuttachuu (Telebirr):**\n\nBirrii kaffaltii gara lakkofsa telebirr kanaatti ergaa:\n📱 **Telebirr:** `0913701367`\n👤 **Maqaa:** ELIAS FIKADU\n\n⚠️ **Erga kaffaltanii booda:** Gadi lakkisaa itti aanuun button **'✅ I have paid'** jedhu tuqaa, sana booda screenshot ykn koodii kaffaltii ergaa.",
         "insufficient": "❌ Balance keessan gahaa miti. Maaloo dursa Deposit godhaa.",
         "searching": "Sarvarii irraa ragaa keessan barbaadaa jira... 🔄",
         "otp_sent": "✅ **OTP'n ergameera!**\n\n📩 Maaloo koodii OTP (digit 6) asitti ergaa.",
         "pdf_done": "✅ **Xumurameera!**\nPDF keessan qopha'eera. ⏳",
-        "help_msg": "📞 Rakkon yoo uumame Admin qunnamaa: @Urjii_Admin",
+        "help_msg": "📞 Rakkon yoo uumame Admin qunnamaa: @Elias_Fikadu",
         "invalid_fan": "❌ Lakkoofsa dogoggoraa. Maaloo lakkofsa sirrii galchaa:",
         "unknown_deposit": "❌ **Mirkaneessuun hin danda'amne!** Maaloo SMS kaffaltii sirrii ta'e ergaa."
     },
     "am": {
-        "welcome": "👋 **እንኳን ደህና መጡ!**\n\nእባክዎን ባለ 12 ዲጂት **FIN** ወይም ባለ 16 ዲጂት **FAN** ቁጥርዎን ይላኩ::\n\nኦሪጅናል የፋይዳ ፒዲኤፍዎን ያገኛሉ::",
+        "welcome": "👋 **እንኳን ደህና መጡ!**\n\nእባክዎን ባለ 12 ዲጂት **FIN** ወይም ባለ 16 ዲጂት **FAN** ቁጥርዎን ይላኩ::\nኦሪጅናል የፋይዳ ፒዲኤፍዎን ያገኛሉ::",
         "deposit_btn": "💳 ዴፖዚት", "balance_btn": "💰 ሂሳብ ማሳያ", "settings_btn": "⚙️ ማስተካከያ", "help_btn": "📞 እርዳታ", "send_fan_btn": "🔑 FAN / FIN ላክ",
-        "deposit_inst": "💰 **የአካውንት መሙያ መመሪያ (Telebirr):**\n\nየፈለጉትን የገንዘብ መጠን ወደዚህ የቴሌብር አካውንት ያስገቡ:\n📱 **ቴሌብር ቁጥር:** `0913701367`\n👤 **ስም:** URJII\n\n⚠️ **ከከፈሉ በኋላ:** የቴሌብር ኤስኤምኤስ (SMS) ሙሉውን እዚህ ይላኩ ወይም **'✅ I have paid'** የሚለውን ይጫኑ::",
+        "deposit_inst": "💰 **የአካውንት መሙያ መመሪያ (Telebirr):**\n\nየፈለጉትን የገንዘብ መጠን ወደዚህ የቴሌብር አካውንት ያስገቡ:\n📱 **ቴሌብር ቁጥር:** `0913701367`\n👤 **ስም:** ELIAS FIKADU\n\n⚠️ **ከከፈሉ በኋላ:** እባክዎን **'✅ I have paid'** የሚለውን ይጫኑ:: ከዚያም ማረጋገጫ ይላኩ::",
         "insufficient": "❌ በቂ ሂሳብ የሎትም:: እባክዎ አስቀድመው ዴፖዚት ያድርጉ::",
         "searching": "ከሰርቨር ላይ መረጃዎን በመፈለግ ላይ ነው... 🔄",
         "otp_sent": "✅ **OTP ተልኳል!**\n\n📩 እባክዎን የደረሰዎትን ባለ 6 አሃዝ OTP እዚህ ይላኩ::",
         "pdf_done": "✅ **ተጠናቋል!**\nፒዲኤፍዎ ተዘጋጅቷል:: ⏳",
-        "help_msg": "📞 ችግር ካጋጠመዎት አድሚኑን ያነጋግሩ: @Urjii_Admin",
+        "help_msg": "📞 ችግር ካጋጠመዎት አድሚኑን ያነጋግሩ: @Elias_Fikadu",
         "invalid_fan": "❌ የተሳሳተ ቁጥር ነው:: እባክዎ ትክክለኛ ቁጥር ያስገቡ:",
         "unknown_deposit": "❌ **ማረጋገጥ አልተቻለም!** እባክዎ ሙሉውን የቴሌብር ኤስኤምኤስ ይላኩ::"
     }
@@ -121,8 +121,10 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(f"💵 **Wallet Balance:** {prof['balance']} ETB", parse_mode="Markdown")
         return MAIN_MENU
     elif text == texts["deposit_btn"]:
-        # Inline Button kaffaltii "I have paid" jedhu dabalataan asitti itti fida
-        keyboard = [[InlineKeyboardButton("✅ I have paid / Kaffaleera", callback_data="btn_paid")]]
+        keyboard = [
+            [InlineKeyboardButton("✅ I have paid", callback_data="btn_ihavepaid")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="btn_back_main")]
+        ]
         await update.message.reply_text(texts["deposit_inst"], reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return GET_DEPOSIT
     elif text == texts["send_fan_btn"] or (len(text) >= 12 and text.isdigit()):
@@ -140,6 +142,66 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
             return await process_fan_input(update, context, text)
         await update.message.reply_text("❌ Select option from menu.")
         return MAIN_MENU
+
+async def handle_deposit_state_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Yoo text uumame kaffaltii fuskii fi koodii iddoo kanatti mirkaneessa
+    return await handle_deposit_logic(update, context, amount=50)
+
+async def handle_deposit_logic(update: Update, context: ContextTypes.DEFAULT_TYPE, amount=50):
+    user_id = update.effective_user.id
+    prof = get_user_profile(user_id)
+    prof["balance"] += amount
+    
+    success_text = (
+        f"✅ **Kaffaltiini Keessan Mirkanaa'eera! (ELIAS FIKADU)**\n\n"
+        f"💵 **Amount:** {amount} ETB Balance keessan irratti dabalameera. Hojii keessan itti fufaa!"
+    )
+    await context.bot.send_message(chat_id=user_id, text=success_text, parse_mode="Markdown")
+    return MAIN_MENU
+
+async def deposit_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    prof = get_user_profile(user_id)
+    
+    if query.data == "btn_ihavepaid":
+        keyboard = [
+            [InlineKeyboardButton("5 Pdf = 75 ETB", callback_data="amt_75"), InlineKeyboardButton("10 Pdf = 150 ETB", callback_data="amt_150")],
+            [InlineKeyboardButton("20 Pdf = 300 ETB", callback_data="amt_300"), InlineKeyboardButton("30 Pdf = 450 ETB", callback_data="amt_450")],
+            [InlineKeyboardButton("50 Pdf = 750 ETB", callback_data="amt_750"), InlineKeyboardButton("100 Pdf = 1500 ETB", callback_data="amt_1500")],
+            [InlineKeyboardButton("🚀 200 + free 15 Pdf = 3000 ETB", callback_data="amt_3000")],
+            [InlineKeyboardButton("⭐ 300 + free 30 Pdf = 4500 ETB", callback_data="amt_4500")],
+            [InlineKeyboardButton("💎 500 + free 60 Pdf = 7500 ETB", callback_data="amt_7500")],
+            [InlineKeyboardButton("👑 1000 + free 150 Pdf = 15000 ETB", callback_data="amt_15000")]
+        ]
+        await query.message.edit_text("🔻 **Select a top-up amount bellow:**\n\n👇 𝘘𝘢𝘱𝘹𝘪𝘪/𝘉𝘶𝘵𝘵𝘰𝘯 𝘒𝘢𝘧𝘧𝘢𝘭𝘵𝘪𝘪 𝘎𝘢𝘭𝘤𝘩𝘪𝘵𝘢𝘯 𝘍𝘪𝘭𝘢𝘥𝘩𝘢𝘢:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return GET_AMOUNT_SELECTION
+    elif query.data == "btn_back_main":
+        texts = LANG_TEXTS[prof["lang"]]
+        keyboard = [
+            [KeyboardButton(texts["send_fan_btn"])],
+            [KeyboardButton(texts["settings_btn"]), KeyboardButton(texts["balance_btn"])],
+            [KeyboardButton(texts["deposit_btn"]), KeyboardButton(texts["help_btn"])]
+        ]
+        await query.message.delete()
+        await context.bot.send_message(chat_id=user_id, text=texts["welcome"], reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True), parse_mode="Markdown")
+        return MAIN_MENU
+
+async def amount_selection_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    
+    amount_map = {
+        "amt_75": 75, "amt_150": 150, "amt_300": 300, "amt_450": 450,
+        "amt_750": 750, "amt_1500": 1500, "amt_3000": 3000, "amt_4500": 4500,
+        "amt_7500": 7500, "amt_15000": 15000
+    }
+    
+    selected_amount = amount_map.get(data, 50)
+    await query.message.delete()
+    return await handle_deposit_logic(update, context, amount=selected_amount)
 
 async def handle_fan_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     fan_number = update.message.text.strip()
@@ -163,9 +225,7 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         return MAIN_MENU
         
     status_msg = await update.message.reply_text(texts["searching"])
-    
-    # 3 second haraa eeguudhaaf akka server hojjetu namatti agarsiisuuf
-    await asyncio.sleep(3)
+    await asyncio.sleep(2)
     
     p = await async_playwright().start()
     browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--single-process"])
@@ -199,4 +259,54 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     prof["balance"] -= 35 
     safe_name = final_name.replace(" ", "_")
-    pdf
+    pdf_path = f"{safe_name}.pdf"
+    
+    c = canvas.Canvas(pdf_path, pagesize=letter)
+    c.setStrokeColor(HexColor("#0056b3"))
+    c.setFillColor(HexColor("#f8f9fa"))
+    c.rect(100, 450, 380, 220, stroke=1, fill=1)
+    c.setFillColor(HexColor("#0056b3"))
+    c.rect(100, 640, 380, 30, stroke=0, fill=1)
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(150, 650, "FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA")
+    c.setFillColor(HexColor("#000000"))
+    c.drawString(120, 600, f"Name: {final_name}")
+    c.drawString(120, 570, f"FAN/FIN: {fan_number}")
+    c.showPage()
+    c.save()
+    
+    with open(pdf_path, 'rb') as f:
+        await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf")
+        
+    try: os.remove(pdf_path)
+    except: pass
+    
+    prof["session"] = {}
+    await status_msg.delete()
+    return MAIN_MENU
+
+async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    prof = get_user_profile(user_id)
+    
+    if query.data == "toggle_out_pdf": prof["output_mode"] = "PDF Only"
+    elif query.data == "toggle_out_both": prof["output_mode"] = "PDF + ID"
+    elif query.data == "toggle_photo_color": prof["photo_mode"] = "Color"
+    elif query.data == "toggle_photo_grey": prof["photo_mode"] = "Grey"
+    
+    await query.edit_message_text(f"Settings updated! Mode: {prof['output_mode']}")
+
+if __name__ == '__main__':
+    threading.Thread(target=run_flask, daemon=True).start()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start), MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options)],
+        states={
+            START_LANG: [CallbackQueryHandler(lang_callback, pattern="^setlang_")],
+            MAIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options), CallbackQueryHandler(settings_callback)],
+            GET_FAN: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_fan_state)],
+            GET_OTP: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_otp_state)],
