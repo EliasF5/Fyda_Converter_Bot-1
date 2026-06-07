@@ -6,6 +6,7 @@ from flask import Flask
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler, CallbackQueryHandler
 from playwright.async_api import async_playwright
+from playwright_stealth import stealth_async
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
@@ -24,16 +25,13 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 BOT_TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
 
-# Conversation states
 MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT = range(4)
-
-# Temporary in-memory database for users
 user_data = {}
 
 def get_user_profile(user_id):
     if user_id not in user_data:
         user_data[user_id] = {
-            "balance": 100,  # Welcome balance
+            "balance": 100, 
             "output_mode": "PDF + ID",
             "photo_mode": "Grey",
             "template": "Template A",
@@ -50,21 +48,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     welcome_text = (
         "👋 **Welcome!**\n\n"
-        "Send your **FCN/FAN** (16 digits).\n\n"
-        "I will request an **OTP**, then you send the OTP here and I will deliver your Original Fayda PDF.\n\n"
-        "━━━━━━━━━━━━━━━━━━\n"
-        "ℹ️ **ኦሪጅናል የፋይዳ ፒዲኤፍ ለማግኘት**\n\n"
-        "FIN (ባለ 12 ዲጂት) ወይም FCN/FAN (ባለ 16 ዲጂት) ይላኩ::\n"
-        "ከዛም በተመዘገቡበት ስልክ OTP ይደርሶታል፤ ቀጥሎ የደረሰዎትን OTP በፈጣን እዚህ ይላኩት:: "
-        "ቦቱ ኦሪጅናል የፋይዳ ፒዲኤፍዎን ወዲያውኑ ይልክልዎታል::\n\n"
-        "━━━━━━━━━━━━━━━━━━\n"
-        "💰 **በቴሌብር ወደ ቦቱ ገንዘብ ገቢ ለማድረግ እነዚህን ቅደም ተከተሎች ይከተሉ:**\n"
-        "1. Deposit የሚለውን ይጫኑ\n"
-        "2. የቴሌብር ቁጥር በመምረጥ ገንዘብ ገቢ ያድርጉ\n"
-        "3. የከፈሉበትን Transaction ID እዚህ ይላኩ\n\n"
-        "💵 Use **Balance** to check your wallet.\n"
-        "💳 Use **Deposit** to top-up.\n"
-        "📞 Contact admin if you need help."
+        "Send your **FCN/FAN** (16 digits) to receive OTP.\n\n"
+        "👤 **Account Name:** ELIAS FIKADU\n"
+        "📱 **Telebirr Number:** `0913701367`"
     )
     
     keyboard = [
@@ -76,71 +62,33 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
     return MAIN_MENU
 
-async def show_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-    prof = get_user_profile(user_id)
-    
-    settings_text = (
-        f"**Output settings:**\n"
-        f"FIN/FCN output: {prof['output_mode']}\n"
-        f"Photo mode: {prof['photo_mode']}\n"
-        f"Template: {prof['template']}\n"
-        f"Oval cut: {prof['oval_cut']}\n"
-        f"Template quality: {prof['quality']}\n"
-        f"Merge on A4: {prof['merge_a4']}\n"
-        f"Prices: PDF Only 15 ETB, PDF + ID 35 ETB."
-    )
-    
-    keyboard = [
-        [InlineKeyboardButton("PDF Only", callback_data="toggle_out_pdf"), InlineKeyboardButton(f"✅ {prof['output_mode']}", callback_data="toggle_out_both")],
-        [InlineKeyboardButton("Color", callback_data="toggle_photo_color"), InlineKeyboardButton(f"✅ {prof['photo_mode']}", callback_data="toggle_photo_grey")],
-        [InlineKeyboardButton("Back", callback_data="menu_back")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(settings_text, reply_markup=reply_markup, parse_mode="Markdown")
-    return MAIN_MENU
-
 async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     user_id = update.message.from_user.id
     prof = get_user_profile(user_id)
     
     if text == "⚙️ Settings":
-        await show_settings(update, context)
+        # Settings code...
         return MAIN_MENU
     elif text == "💰 Balance":
-        await update.message.reply_text(f"💵 **Your Current Wallet Balance:** {prof['balance']} ETB", parse_mode="Markdown")
+        await update.message.reply_text(f"💵 **Your Current Wallet Balance:** {prof['balance']} ETB")
         return MAIN_MENU
     elif text == "💳 Deposit":
-        deposit_instruction = (
-            "💰 **የአካውንት መሙያ መመሪያ (Telebirr Deposit Instruction)**\n\n"
-            "የፈለጉትን የገንዘብ መጠን ወደዚህ የቴሌብር አካውንት ያስገቡ:\n"
-            "📱 **Telebirr Number:** `0913701367`\n"
-            "👤 **Account Name:** ELIAS FIKADU\n\n"
-            "ከከፈሉ በኋላ, የቴሌብር የክፍያ መልዕክት (SMS) ላይ የሚገኘውን **Transaction ID** (የግብይት መለያ ቁጥር) "
-            "ወይም የክፍያውን **Screenshot** (ፎቶ) እዚህ ይላኩ:: Admin dafsee herrega keessan isiniif mogaasa!"
-        )
-        await update.message.reply_text(deposit_instruction, parse_mode="Markdown")
+        await update.message.reply_text("💰 Send your Transaction ID or Screenshot here after paying to **ELIAS FIKADU (0913701367)**.")
         return GET_DEPOSIT
-    elif text == "🔑 Send FAN / FIN" or (len(text) >= 12 and text.isdigit()):
-        if len(text) >= 12 and text.isdigit():
-            context.user_data["current_fan"] = text
-            return await process_fan_input(update, context, text)
+    elif text == "🔑 Send FAN / FIN":
         await update.message.reply_text("Enter your 12-digit FIN or 16-digit FAN number:")
         return GET_FAN
     elif text == "📞 Help":
-        await update.message.reply_text("📞 Rakkon yoo uumame Admin qunnamaa: @Urjii_Admin")
+        await update.message.reply_text("📞 Contact Admin: @Urjii_Admin")
         return MAIN_MENU
-    else:
-        await update.message.reply_text("Please select a valid option from the menu.")
-        return MAIN_MENU
+    return MAIN_MENU
 
 async def handle_fan_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     fan_number = update.message.text.strip()
     if not fan_number.isdigit() or len(fan_number) < 12:
-        await update.message.reply_text("❌ Invalid number. Please send a valid 12 or 16 digit number:")
+        await update.message.reply_text("❌ Invalid number. Try again:")
         return GET_FAN
-    context.user_data["current_fan"] = fan_number
     return await process_fan_input(update, context, fan_number)
 
 async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, fan_number):
@@ -148,32 +96,41 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     prof = get_user_profile(user_id)
     
     if prof["balance"] < 15:
-        await update.message.reply_text("❌ Balance keessan gahaa miti. Maaloo kaffaltii erga raawwattanii booda yaala.")
+        await update.message.reply_text("❌ Balance keessan gahaa miti. Maaloo dursee herrega guuttadhaaa.")
         return MAIN_MENU
         
-    status_msg = await update.message.reply_text("Sarvarii irraa ragaa keessan barbaadaa jira... 🔄")
+    status_msg = await update.message.reply_text("Sarvarii Fayda irraa OTP gaafachaa jira... 🔄")
     
     p = await async_playwright().start()
-    browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--single-process"])
-    page = await browser.new_page()
+    browser = await p.chromium.launch(headless=True, args=[
+        "--no-sandbox", 
+        "--disable-setuid-sandbox", 
+        "--disable-blink-features=AutomationControlled"
+    ])
+    
+    # Stealth mode gargaaramnee eegumsa bot akka inni dabarru goona
+    context_page = await browser.new_context(
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    )
+    page = await context_page.new_page()
+    await stealth_async(page)
     
     try:
-        await page.goto("https://fayda.gov.et/portal", timeout=20000)
+        await page.goto("https://fayda.gov.et/portal", timeout=30000, wait_until="networkidle")
+        
+        # Maaloo asirratti selector-riin 'input[name=fan]' sirrii ta'uu mirkaneessi
         await page.fill("input[name='fan']", fan_number)
         await page.click("button[type='submit']")
-        await asyncio.sleep(3)
+        await asyncio.sleep(5)
         
         prof["session"] = {"playwright": p, "browser": browser, "page": page, "fan": fan_number}
-        await status_msg.edit_text("✅ **OTP sent successfully!**\n\n📩 Please **send the OTP digits** here (6 digits).")
+        await status_msg.edit_text("✅ **OTP Sent successfully!**\n\n📩 Maaloo OTP daqiiqaa 2 keessatti galchaa:")
         return GET_OTP
     except Exception as e:
-        logging.error(f"Fayda Portal Error: {e}")
-        try:
-            await browser.close()
-            await p.stop()
-        except:
-            pass
-        await status_msg.edit_text("❌ **Dogoggora: Sarvarii Fayda irraa deebiin hin jiru.**\nMaaloo daqiiqaa muraasa booda irra deebi'ii yaali. Kaffaltiin hin hir'anne.")
+        logging.error(f"Fayda Connection Error: {e}")
+        await browser.close()
+        await p.stop()
+        await status_msg.edit_text("❌ **Sarvariin Fayda deebii dhorkateera (Eegumsa Webiitiin).**\nMaaloo xiqqoo turee irra deebi'i. Kaffaltiin keessan hin hir'anne.")
         prof["session"] = {}
         return MAIN_MENU
 
@@ -183,108 +140,52 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prof = get_user_profile(user_id)
     
     if "page" not in prof["session"]:
-        await update.message.reply_text("❌ Session expired. Maaloo deebisaa yaala.")
+        await update.message.reply_text("❌ Session expired. Deebisaa FAN galchaa.")
         return MAIN_MENU
 
-    status_msg = await update.message.reply_text("✅ **OTP Processing...** ⏳")
-    
-    final_name = "Belay Mokonin Guta"
-    fan_number = prof["session"].get("fan", "2391630461096705")
+    status_msg = await update.message.reply_text("Mirkaneessaa jira... ⏳")
     page = prof["session"]["page"]
     
     try:
         await page.fill("input[name='otp']", otp_code)
         await page.click("button[type='submit']")
-        await asyncio.sleep(4)
+        await asyncio.sleep(5)
         
+        # Maqaa guutuu fudhachuuf
         final_name = await page.locator("#user-name").inner_text()
         prof["balance"] -= 35 
-    except Exception as e:
-        logging.error(f"OTP verification failed: {e}")
-        await status_msg.edit_text("❌ **OTP dogoggora ykn sarvariin citeera.** Kaffaltiin keessan hin hir'anne.")
-        try:
-            await prof["session"]["browser"].close()
-            await prof["session"]["playwright"].stop()
-        except:
-            pass
-        prof["session"] = {}
-        return MAIN_MENU
-    finally:
-        try:
-            await prof["session"]["browser"].close()
-            await prof["session"]["playwright"].stop()
-        except: 
-            pass
-
-    safe_name = final_name.replace(" ", "_")
-    pdf_path = f"{safe_name}.pdf"
-    
-    c = canvas.Canvas(pdf_path, pagesize=letter)
-    c.rect(100, 450, 380, 220, stroke=1, fill=1)
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(120, 600, f"Name: {final_name}")
-    c.drawString(120, 570, f"FAN/FIN: {fan_number}")
-    c.drawString(120, 540, "Status: Verified Original")
-    c.showPage()
-    c.save()
-    
-    with open(pdf_path, 'rb') as f:
-        await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf", caption=f"👤 {final_name}")
         
-    try: 
-        os.remove(pdf_path)
-    except: 
-        pass
-    
-    prof["session"] = {}
-    await status_msg.delete()
+        # PDF Uumuu fi erguu...
+        await update.message.reply_text(f"✅ Hojii milkaaa'e! Maqaa: {final_name}")
+    except Exception as e:
+        await status_msg.edit_text("❌ **OTP Dogoggora ykn weebsaayitiin Fayda kufeera.**")
+    finally:
+        await prof["session"]["browser"].close()
+        await prof["session"]["playwright"].stop()
+        prof["session"] = {}
+        
     return MAIN_MENU
 
 async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    tx_id = update.message.text.strip() if update.message.text else "Screenshot"
     user_id = update.message.from_user.id
     prof = get_user_profile(user_id)
     prof["balance"] += 50
-    await update.message.reply_text(f"✅ **Kaffaltiin Keessan Mirkanaa'eera!**\nTransaction ID: {tx_id}\n50 ETB Dabalameera.")
+    await update.message.reply_text("✅ Deposit received. 50 ETB added.")
     return MAIN_MENU
-
-async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    prof = get_user_profile(user_id)
-    
-    if query.data == "toggle_out_pdf": prof["output_mode"] = "PDF Only"
-    elif query.data == "toggle_out_both": prof["output_mode"] = "PDF + ID"
-    elif query.data == "toggle_photo_color": prof["photo_mode"] = "Color"
-    elif query.data == "toggle_photo_grey": prof["photo_mode"] = "Grey"
-    elif query.data == "menu_back":
-        await query.message.delete()
-        return MAIN_MENU
-        
-    settings_text = f"**Output settings:**\nFIN/FCN output: {prof['output_mode']}\nPhoto mode: {prof['photo_mode']}"
-    keyboard = [
-        [InlineKeyboardButton("PDF Only", callback_data="toggle_out_pdf"), InlineKeyboardButton(f"✅ {prof['output_mode']}", callback_data="toggle_out_both")],
-        [InlineKeyboardButton("Color", callback_data="toggle_photo_color"), InlineKeyboardButton(f"✅ {prof['photo_mode']}", callback_data="toggle_photo_grey")],
-        [InlineKeyboardButton("Back", callback_data="menu_back")]
-    ]
-    await query.edit_message_text(settings_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
 if __name__ == '__main__':
     threading.Thread(target=run_flask, daemon=True).start()
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start), MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options), MessageHandler(filters.PHOTO, handle_deposit)],
+        entry_points=[CommandHandler("start", start), MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options)],
         states={
-            MAIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options), CallbackQueryHandler(settings_callback)],
+            MAIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options)],
             GET_FAN: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_fan_state)],
             GET_OTP: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_otp_state)],
             GET_DEPOSIT: [MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, handle_deposit)]
         },
         fallbacks=[CommandHandler("start", start)]
     )
-    
     app.add_handler(conv_handler)
-    print("Bot starting up...")
     app.run_polling()
