@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 # --- CONFIGURATION ---
 TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
-# RENDER_URL kee as galchi (Fkn: https://fyda-converter-bot-2.onrender.com)
-RENDER_URL = "https://fyda-converter-bot-2.onrender.com"  
+ADMIN_ID = 123456789  # Telegram User ID kee as galchi (Kaffaltiin siif dhufa)
 
 # States for Conversation
 MAIN_STATE, DEPOSIT_STATE, PROOF_STATE = range(3)
@@ -58,7 +57,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     get_user_profile(user_id)
     
     welcome_text = (
-        "🚀 **አገልግሎታችን በበለጠ ተሻሽሏል፡፡**\n"
+        "🚀 **አገልግሎታችን በበለጠ ተሻшሏል፡፡**\n"
         "**Our service has been improved even further.**\n\n"
         "✅ አሁን **FIN** ወይም **FAN/FCN** በመላክ ኦሪጅናል የፋይዳ PDFዎን ማግኘት ብቻ ሳይሆን "
         "ከፈለጉ **PDF + ID** አገልግሎቱንም በአንድ ላይ በጣም በተመጣጣኝ ዋጋ ማግኘት ይችላሉ፡፡\n\n"
@@ -105,9 +104,9 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⭐ 300 + free 30 Pdf = 4500 ETB\n"
             "💎 500 + free 60 Pdf = 7500 ETB\n"
             "👑 1000 + free 150 Pdf = 15000 ETB\n\n"
-            "💳 **Send to CBE: Coming Soon**\n"
-            "የባንክ ክፍያ አማራጭ በቅርቡ እንጀምራለን\n\n"
-            "📌 After payment, tap **I have paid** and then send a screenshot/link/text as evidence."
+            "💳 **Send via Telebirr:** `0913701367`\n"
+            "👤 **Name:** URJII (ELIAS FIKADU)\n\n"
+            "📌 After payment, tap **✅ I have paid** and then send a screenshot/text as evidence."
         )
         await update.message.reply_text(deposit_text, reply_markup=deposit_keyboard(), parse_mode="Markdown")
         return DEPOSIT_STATE
@@ -117,7 +116,7 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return MAIN_STATE
 
     else:
-        # User entered FIN / FAN
+        # FIN / FAN check
         if profile['balance'] <= 0:
             await update.message.reply_text(
                 "❌ **Balance Unsufficient!**\n\n"
@@ -128,6 +127,7 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return MAIN_STATE
         
         await update.message.reply_text(f"⏳ **Processing request for:** `{text}`...\nPlease wait.")
+        # OCR / Playwright code dabalataa asna galamu danda'a
         profile['balance'] -= 1
         await update.message.reply_text("✅ Fayda matched! Document generated.", reply_markup=main_keyboard())
         return MAIN_STATE
@@ -143,12 +143,54 @@ async def handle_deposit_flow(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def handle_payment_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    # Admin notification setup 
+    
+    admin_actions = [
+        [InlineKeyboardButton("✅ Approve 10 PDF", callback_data=f"adm_app_{user.id}_10")],
+        [InlineKeyboardButton("✅ Approve 50 PDF", callback_data=f"adm_app_{user.id}_50")],
+        [InlineKeyboardButton("❌ Reject / Fake", callback_data=f"adm_rej_{user.id}")]
+    ]
+    
+    await context.bot.send_message(
+        chat_id=ADMIN_ID,
+        text=f"🔔 **Kaffaltii Haaraa!**\nFrom: {user.full_name} (@{user.username})\nUID: {user.id}",
+        reply_markup=InlineKeyboardMarkup(admin_actions)
+    )
+    
+    if update.message.photo:
+        await context.bot.send_photo(chat_id=ADMIN_ID, photo=update.message.photo[-1].file_id)
+    else:
+        await context.bot.send_message(chat_id=ADMIN_ID, text=f"Receipt Text: {update.message.text}")
+
     await update.message.reply_text(
         "⏳ **Ragaan keessan fudhatameera!**\nAdmin herrega keessan daqiiqaa muraasa keessatti qoree mirkaneessa.",
         reply_markup=main_keyboard()
     )
     return MAIN_STATE
+
+async def process_admin_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    if "adm_app" in data:
+        _, _, user_id, packs = data.split("_")
+        user_id = int(user_id)
+        packs = int(packs)
+        profile = get_user_profile(user_id)
+        profile['balance'] += packs
+
+        success_notif = (
+            f"✅ **Kaffaltiini Keessan Mirkanaa'eera!**\n"
+            f"(ELIAS FIKADU)\n\n"
+            f"💵 {packs} PDF Pack Balance keessan irratti dabalameera. Hojii keessan itti fufaa!"
+        )
+        await context.bot.send_message(chat_id=user_id, text=success_notif)
+        await query.edit_message_text(text=f"🟢 User {user_id} approved with {packs} packs.")
+
+    elif "adm_rej" in data:
+        user_id = int(data.split("_")[2])
+        await context.bot.send_message(chat_id=user_id, text="❌ **Kaffaltiin Keessan Hin Mirkanoofne!**\nKaffaltii sobaa ykn screenshot sirriin kanaan dura fayyadame argameera.")
+        await query.edit_message_text(text=f"🔴 Request declined.")
 
 async def process_settings_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -197,10 +239,16 @@ def run_bot():
     
     application.add_handler(conv_handler)
     application.add_handler(CallbackQueryHandler(process_settings_callbacks, pattern="^set_"))
+    application.add_handler(CallbackQueryHandler(process_admin_callbacks, pattern="^adm_"))
     
-    # Initialize and set Webhook dynamically to fix Conflict error
     application.initialize()
-    application.bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
+    
+    # RENDER_EXTERNAL_URL Render irraa ofumaan https fida, dogoggora sun ni fura!
+    render_url = os.environ.get('RENDER_EXTERNAL_URL')
+    if render_url:
+        application.bot.set_webhook(url=f"{render_url}/{TOKEN}")
+        logger.info(f"Webhook set to: {render_url}/{TOKEN}")
+    
     application.start()
 
 if __name__ == '__main__':
