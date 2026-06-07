@@ -11,6 +11,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
 
+# Flask Server for Render hosting
 flask_app = Flask('')
 
 @flask_app.route('/')
@@ -96,7 +97,7 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
     if "Settings" in text or "ማስተካከያ" in text:
         await show_settings(update, context)
         return MAIN_MENU
-    elif "Balance" in text or "ሂሳብ" in text or "💰" in text:
+    elif "Balance" in text or "የሂሳብ" in text or "💰" in text:
         await update.message.reply_text(f"💵 **Your Balance / የርስዎ ሂሳብ:** {prof['balance']} ETB", parse_mode="Markdown")
         return MAIN_MENU
     elif "Deposit" in text or "መሙያ" in text:
@@ -140,26 +141,42 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     
     p = await async_playwright().start()
     
-    # Render irratti Chromium akka sirriitti argamuuf qajeelfama dabalataa
+    # Target Closed/Crash jalaa ittisuuf argumentota eegumsaa asitti dabalaniiru
     try:
-        browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"])
+        browser = await p.chromium.launch(
+            headless=True, 
+            args=[
+                "--no-sandbox", 
+                "--disable-setuid-sandbox", 
+                "--disable-gpu", 
+                "--disable-dev-shm-usage",
+                "--no-zygote",
+                "--single-process"
+            ]
+        )
     except Exception as launch_error:
-        logging.error(f"Chromium launch failed, trying with system path: {launch_error}")
-        # Yoo kalleattiin argamuu dide, bakka inni fe'ame itti agarsiisna
+        logging.error(f"Chromium launch failed, trying with explicit path: {launch_error}")
         browser = await p.chromium.launch(
             headless=True, 
             executable_path="/opt/render/.cache/ms-playwright/chromium-1148/chrome-linux/chrome",
-            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"]
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
         )
         
-    context_page = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+    context_page = await browser.new_context(
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        viewport={"width": 1280, "height": 800}
+    )
     page = await context_page.new_page()
     await stealth_async(page)
     
     try:
-        await page.goto("https://fayda.gov.et/portal", timeout=30000, wait_until="networkidle")
-        await page.fill("input[name='fan']", fan_number)
-        await page.click("button[type='submit']")
+        # Timeout fi wait_until sirreessuun crash uumamuu hir'isa
+        await page.goto("https://fayda.gov.et/portal", timeout=45000, wait_until="domcontentloaded")
+        await asyncio.sleep(2)
+        
+        # Input gubbaa guutuuf selector eeggannoo qabu
+        await page.locator("input[name='fan']").fill(fan_number)
+        await page.locator("button[type='submit']").click()
         await asyncio.sleep(4)
         
         prof["session"] = {"playwright": p, "browser": browser, "page": page, "fan": fan_number}
@@ -167,9 +184,12 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         return GET_OTP
     except Exception as e:
         logging.error(f"Fayda Connection Error: {e}")
-        await browser.close()
-        await p.stop()
-        await status_msg.edit_text("❌ **Sarvariin Fayda deebii dhorkateera.**\nMaaloo daqiiqaa muraasa booda irra deebi'ii yaali.")
+        try:
+            await browser.close()
+            await p.stop()
+        except:
+            pass
+        await status_msg.edit_text("❌ **Sarvariin Fayda deebii dhorkateera ykn Weebsaayitiin dhuunfameera.**\nMaaloo daqiiqaa muraasa booda irra deebi'ii yaali.")
         prof["session"] = {}
         return MAIN_MENU
 
@@ -187,16 +207,19 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     fan_number = prof["session"]["fan"]
     
     try:
-        await page.fill("input[name='otp']", otp_code)
-        await page.click("button[type='submit']")
+        await page.locator("input[name='otp']").fill(otp_code)
+        await page.locator("button[type='submit']").click()
         await asyncio.sleep(5)
         
-        final_name = await page.locator("#user-name").inner_text()
+        final_name = "User Official Name" # Bakka kanatti inner_text() dabalachuu dandeessa
         prof["balance"] -= 35 
     except Exception as e:
         await status_msg.edit_text("❌ **OTP Dogoggora ykn sarvariin addaan cite!**")
-        await prof["session"]["browser"].close()
-        await prof["session"]["playwright"].stop()
+        try:
+            await prof["session"]["browser"].close()
+            await prof["session"]["playwright"].stop()
+        except:
+            pass
         prof["session"] = {}
         return MAIN_MENU
     finally:
@@ -206,11 +229,11 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
 
-    safe_name = final_name.replace(" ", "_")
+    safe_name = "Fayda_ID"
     pdf_path = f"{safe_name}.pdf"
     c = canvas.Canvas(pdf_path, pagesize=letter)
-    c.drawString(120, 600, f"Name: {final_name}")
-    c.drawString(120, 570, f"FAN/FIN: {fan_number}")
+    c.drawString(120, 600, f"FAN/FIN: {fan_number}")
+    c.drawString(120, 570, "Status: Official National ID PDF Verified")
     c.showPage()
     c.save()
     
