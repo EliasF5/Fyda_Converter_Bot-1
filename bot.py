@@ -96,7 +96,7 @@ async def lang_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [KeyboardButton(texts["deposit_btn"]), KeyboardButton(texts["help_btn"])]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    await query.message.reply_text(texts["welcome"], reply_markup=reply_markup, parse_mode="Markdown")
+    await context.bot.send_message(chat_id=user_id, text=texts["welcome"], reply_markup=reply_markup, parse_mode="Markdown")
     return MAIN_MENU
 
 async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -124,16 +124,14 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
         ]
         await update.message.reply_text(texts["deposit_inst"], reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return GET_DEPOSIT
-    elif text == texts["send_fan_btn"] or (len(text) >= 12 and text.isdigit()):
-        if len(text) >= 12 and text.isdigit():
-            context.user_data["current_fan"] = text
-            return await process_fan_input(update, context, text)
+    elif text == texts["send_fan_btn"]:
         await update.message.reply_text("Enter your 12-digit FIN or 16-digit FAN number:")
         return GET_FAN
     elif text == texts["help_btn"]:
         await update.message.reply_text(texts["help_msg"])
         return MAIN_MENU
     else:
+        # Yoo fayyandamaan menu osoo hin tuqin kallattiin lakkoofsa barreesse
         if len(text) >= 12 and text.isdigit():
             context.user_data["current_fan"] = text
             return await process_fan_input(update, context, text)
@@ -141,6 +139,7 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
         return MAIN_MENU
 
 async def handle_deposit_state_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Yoo fayyadamamaan text barreesse (fkn SMS kaffaltii)
     return await handle_deposit_logic(update, context, amount=50)
 
 async def handle_deposit_logic(update: Update, context: ContextTypes.DEFAULT_TYPE, amount=50):
@@ -221,13 +220,14 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         return MAIN_MENU
         
     status_msg = await update.message.reply_text(texts["searching"])
-    await asyncio.sleep(2)
     
-    p = await async_playwright().start()
-    browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--single-process"])
-    page = await browser.new_page()
-    
+    p = None
+    browser = None
     try:
+        p = await async_playwright().start()
+        browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"])
+        page = await browser.new_page()
+        
         await page.goto("https://fayda.gov.et/portal", timeout=15000)
         await page.fill("input[name='fan']", fan_number)
         await page.click("button[type='submit']")
@@ -236,11 +236,16 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         prof["session"] = {"playwright": p, "browser": browser, "page": page, "fan": fan_number}
         await status_msg.edit_text(texts["otp_sent"])
         return GET_OTP
-    except Exception:
-        await browser.close()
-        await p.stop()
-        await status_msg.edit_text(texts["otp_sent"])
+    except Exception as e:
+        logging.error(f"Playwright error: {e}")
+        if browser:
+            await browser.close()
+        if p:
+            await p.stop()
+        
+        # Yoo kuffellee mock session uumee itti fufa
         prof["session"] = {"mock": True, "fan": fan_number}
+        await status_msg.edit_text(texts["otp_sent"])
         return GET_OTP
 
 async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -253,10 +258,12 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     final_name = "Belay Mokonin Guta"
     fan_number = prof["session"].get("fan", "2391630461096705")
     
+    # Kaffaltii hir'isi
     prof["balance"] -= 35 
     safe_name = final_name.replace(" ", "_")
     pdf_path = f"{safe_name}.pdf"
     
+    # ReportLab PDF generation
     c = canvas.Canvas(pdf_path, pagesize=letter)
     c.setStrokeColor(HexColor("#0056b3"))
     c.setFillColor(HexColor("#f8f9fa"))
@@ -272,6 +279,15 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     c.showPage()
     c.save()
     
+    # Browser cufuu yaadachuu (Playwright session clenaup)
+    session = prof.get("session", {})
+    if "mock" not in session:
+        try:
+            await session["browser"].close()
+            await session["playwright"].stop()
+        except:
+            pass
+            
     with open(pdf_path, 'rb') as f:
         await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf")
         
@@ -299,14 +315,19 @@ async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return MAIN_MENU
 
 if __name__ == '__main__':
+    # Flask thread keessatti jalqabi
     threading.Thread(target=run_flask, daemon=True).start()
+    
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start), MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options)],
+        entry_points=[CommandHandler("start", start)],
         states={
             START_LANG: [CallbackQueryHandler(lang_callback, pattern="^setlang_")],
-            MAIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options), CallbackQueryHandler(settings_callback)],
+            MAIN_MENU: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options), 
+                CallbackQueryHandler(settings_callback)
+            ],
             GET_FAN: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_fan_state)],
             GET_OTP: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_otp_state)],
             GET_DEPOSIT: [
@@ -314,8 +335,8 @@ if __name__ == '__main__':
                 CallbackQueryHandler(deposit_callback_handler, pattern="^(btn_ihavepaid|btn_back_main)$")
             ],
             GET_AMOUNT_SELECTION: [CallbackQueryHandler(amount_selection_callback, pattern="^amt_")]
-        },
-        fallbacks=[CommandHandler("start", start)]
+        ],
+        fallbacks=[CommandHandler("start", start), MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options)]
     )
     
     app.add_handler(conv_handler)
