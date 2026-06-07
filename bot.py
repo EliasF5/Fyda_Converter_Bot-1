@@ -18,6 +18,7 @@ def home():
     return "Bot is running live!"
 
 def run_flask(): 
+    # Render irratti port 8080 ykn isaa ol fayyadama
     flask_app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -178,7 +179,7 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     prof = get_user_profile(user_id)
     
-    status_msg = await update.message.reply_text("✅ **Done!**\n\nYour PDF has been delivered. ⏳")
+    status_msg = await update.message.reply_text("✅ **Processing...**\n\nYour PDF is being generated. ⏳")
     
     final_name = "Belay Mokonin Guta"
     fan_number = prof["session"].get("fan", "2391630461096705")
@@ -221,12 +222,24 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     c.showPage()
     c.save()
     
-    with open(pdf_path, 'rb') as f:
-        await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf", caption=f"👤 {final_name}\nDownloaded from @National_idpdfbot")
+    # Document erguu
+    try:
+        with open(pdf_path, 'rb') as f:
+            await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf", caption=f"👤 {final_name}\nDownloaded from @National_idpdfbot")
+    except Exception as e:
+        logging.error(f"Error sending document: {e}")
         
-    await update.message.reply_photo(photo=open(pdf_path, 'rb'), caption=f"Normal [{final_name}].png")
-    await update.message.reply_photo(photo=open(pdf_path, 'rb'), caption=f"Mirror [{final_name}].png")
-    await update.message.reply_photo(photo=open(pdf_path, 'rb'), caption=f"A4 (Color Mirror) [{final_name}].png")
+    # Faayila PDF kallaattiin reply_photo gochuun koodii waan balleessuuf 'try-except' keessa kaayameera
+    try:
+        with open(pdf_path, 'rb') as f:
+            await update.message.reply_photo(photo=f, caption=f"Normal [{final_name}].png")
+        with open(pdf_path, 'rb') as f:
+            await update.message.reply_photo(photo=f, caption=f"Mirror [{final_name}].png")
+        with open(pdf_path, 'rb') as f:
+            await update.message.reply_photo(photo=f, caption=f"A4 (Color Mirror) [{final_name}].png")
+    except Exception as e:
+        logging.error(f"Error sending photos (PDF format mismatch): {e}")
+        await update.message.reply_text("⚠️ Yaadannoo: Gosti faayila fakkii kallaattiin PDF irraa jijjiiramuu waan hin dandeenyeef erguu hin danda'amne.")
     
     try: 
         os.remove(pdf_path)
@@ -234,16 +247,19 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
     
     prof["session"] = {}
-    await status_msg.delete()
+    try:
+        await status_msg.delete()
+    except:
+        pass
     return MAIN_MENU
 
 async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    tx_id = update.message.text.strip()
+    tx_id = update.message.text.strip() if update.message.text else "Screenshot Sent"
     user_id = update.message.from_user.id
     prof = get_user_profile(user_id)
     
     prof["balance"] += 50
-    await update.message.reply_text(f"✅ **Kaffaltiin Keessan Mirkanaa'eera!**\nTransaction ID: {tx_id}\n50 ETB Balance keessan irratti dabalameera. Hojii keessan itti fufaa!")
+    await update.message.reply_text(f"✅ **Kaffaltiin Keessan Mirkanaa'eera!**\nTransaction/Screenshot received.\n50 ETB Balance keessan irratti dabalameera. Hojii keessan itti fufaa!")
     return MAIN_MENU
 
 async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
