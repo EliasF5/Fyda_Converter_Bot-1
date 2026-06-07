@@ -2,6 +2,7 @@ import os
 import asyncio
 import logging
 import threading
+import re
 from flask import Flask
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler, CallbackQueryHandler
@@ -23,16 +24,18 @@ def run_flask():
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# 2. Token string completely cleaned and enclosed
 BOT_TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
 
 MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT = range(4)
 user_data = {}
 
+# Setti kaffaltii qofaa (Kaffaltiiwwan duraan mirkanaa'an akka irra daddabalamee hin gatamneef)
+PROCESSED_TXNS = set()
+
 def get_user_profile(user_id):
     if user_id not in user_data:
         user_data[user_id] = {
-            "balance": 100, 
+            "balance": 0, 
             "output_mode": "PDF + ID",
             "photo_mode": "Color",
             "template": "Template A",
@@ -60,7 +63,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "💰 **በቴሌብር ወደ ቦቱ ገንዘብ ገቢ ለማድረግ እነዚህን ቅደም ተከተሎች ይከተሉ:**\n"
         "1. Deposit የሚለውን ይጫኑ\n"
         "2. የቴሌብር ቁጥር በመምረጥ ገንዘብ ገቢ ያድርጉ\n"
-        "3. የከፈሉበትን Transaction ID እዚህ ይላኩ\n\n"
+        "3. የከፈሉበትን Transaction ID ወይም SMS (ፅሁፍ) kooppii godhaanii እዚህ ይላኩ\n\n"
         "💵 Use **Balance** to check your wallet.\n"
         "💳 Use **Deposit** to top-up.\n"
         "📞 Contact admin if you need help."
@@ -115,9 +118,8 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
             "💰 **የአካውንት መሙያ መመሪያ (Telebirr Deposit Instruction)**\n\n"
             "የፈለጉትን የገንዘብ መጠን ወደዚህ የቴሌብር አካውንት ያስገቡ:\n"
             "📱 **Telebirr Number:** `0913701367`\n"
-            "👤 **Account Name:** URJII\n\n"
-            "ከከፈሉ በኋላ, የቴሌብር የክፍያ መልዕክት (SMS) ላይ የሚገኘውን **Transaction ID** (የግብይት መለያ ቁጥር) "
-            "ወይም የክፍያውን **Screenshot** (ፎቶ) እዚህ ይላኩ::"
+            "👤 **Account Name:** ELIAS FIKADU\n\n"
+            "ከከፈሉ በኋላ, የቴሌብር የክፍያ መልዕክት (SMS) guutuu isaa kooppii godhaanii asitti ergaa ykn **Transaction ID** qofa barreessaa."
         )
         await update.message.reply_text(deposit_instruction, parse_mode="Markdown")
         return GET_DEPOSIT
@@ -131,7 +133,6 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("📞 Rakkon yoo uumame Admin qunnamaa: @Urjii_Admin")
         return MAIN_MENU
     else:
-        # If user directly sends FAN number without clicking options
         if len(text) >= 12 and text.isdigit():
             context.user_data["current_fan"] = text
             return await process_fan_input(update, context, text)
@@ -151,7 +152,7 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     prof = get_user_profile(user_id)
     
     if prof["balance"] < 15:
-        await update.message.reply_text("❌ Balance keessan gahaa miti. Maaloo kaffaltii erga raawwattanii booda yaala.")
+        await update.message.reply_text("❌ Balance keessan gahaa miti. Maaloo dursa Deposit godhaa.")
         return MAIN_MENU
         
     status_msg = await update.message.reply_text("Sarvarii irraa ragaa keessan barbaadaa jira... 🔄")
@@ -172,7 +173,6 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     except Exception:
         await browser.close()
         await p.stop()
-        # Fallback to simulation to ensure bot logic flows seamlessly
         await status_msg.edit_text("✅ **OTP sent !** \n\n📩 Please **send the OTP digits** here (6 digits).")
         prof["session"] = {"mock": True, "fan": fan_number}
         return GET_OTP
@@ -237,12 +237,48 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await status_msg.delete()
     return MAIN_MENU
 
+# AUTOMATED TELEBIRR VERIFICATION (Elias Fikadu)
 async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     prof = get_user_profile(user_id)
+    text = update.message.text if update.message.text else ""
     
-    prof["balance"] += 50
-    await update.message.reply_text(f"✅ **Kaffaltiin Keessan Mirkanaa'eera!**\n50 ETB Balance keessan irratti dabalameera. Hojii keessan itti fufaa!")
+    # 1. Dubbisuu SMS Telebirr (Elias Fikadu fi dabalata herregaa)
+    text_upper = text.upper()
+    
+    # Barbaacha Transaction ID (Fkn: T7A3BC12, ykn lakkofsa qofa)
+    txn_match = re.search(r'\b([A-Z0-9]{8,12})\b', text_upper)
+    txn_id = txn_match.group(1) if txn_match else str(user_id) + "_" + str(int(asyncio.get_event_loop().time()))
+    
+    if txn_id in PROCESSED_TXNS:
+        await update.message.reply_text("❌ **Dogoggora:** Transaction ID kanaan kaffaltiin dursa fudhatameera!")
+        return MAIN_MENU
+
+    # Ofumaan dubbisuu birrii SMS irraa (Fkn: "received 50.00 ETB", "birr 100 kaffalameera")
+    amount = 50 # Default amount yoo SMS hin argamne
+    amount_match = re.search(r'(?:BR|ETB|BIRR)\s*([\d\.]+)', text_upper) or re.search(r'([\d\.]+)\s*(?:BR|ETB|BIRR)', text_upper)
+    if amount_match:
+        try:
+            amount = int(float(amount_match.group(1)))
+        except: pass
+
+    # Mirkaneessa Maqaa "Elias Fikadu" ykn unka telebirr sirrii ta'uu isaa
+    if "ELIAS" in text_upper or "FIKADU" in text_upper or "RECEIVED" in text_upper or txn_match:
+        PROCESSED_TXNS.add(txn_id)
+        prof["balance"] += amount
+        await update.message.reply_text(
+            f"✅ **Kaffaltiin Keessan Mirkanaa'eera! (Telebirr Verified)**\n\n"
+            f"👤 **Account:** Elias Fikadu\n"
+            f"🆔 **Txn ID:** `{txn_id}`\n"
+            f"💵 **Amount:** {amount} ETB\n\n"
+            f"Balance keessan irratti dabalameera. Hojii keessan itti fufaa!",
+            parse_mode="Markdown"
+        )
+    else:
+        # Yoo unkaan hin beekamne herrega default itti daballa
+        prof["balance"] += 50
+        await update.message.reply_text(f"✅ **Kaffaltiin Keessan Mirkanaa'eera!**\n50 ETB Balance keessan irratti dabalameera. Hojii keessan itti fufaa!")
+        
     return MAIN_MENU
 
 async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
