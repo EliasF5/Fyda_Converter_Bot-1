@@ -303,6 +303,8 @@ async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == '__main__':
     threading.Thread(target=run_flask, daemon=True).start()
+    
+    # Application ijaaruuf koodii sirreeffame
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     
     conv_handler = ConversationHandler(
