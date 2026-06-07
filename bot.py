@@ -9,6 +9,7 @@ from playwright.async_api import async_playwright
 from playwright_stealth import stealth_async
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from reportlab.lib.colors import HexColor  # DOGOGGORA SANA KAN FURU KANA!
 
 # Flask Server for Render hosting
 flask_app = Flask('')
@@ -23,7 +24,7 @@ def run_flask():
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 BOT_TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
-ADMIN_ID = 6384218679  # ID Telegram kee kan kaffaltiin irratti ergamu (Amma sirriitti itti galeera)
+ADMIN_ID = 6384218679  # ID Telegram kee kan kaffaltiin irratti ergamu
 
 MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT = range(4)
 user_data = {}
@@ -31,7 +32,7 @@ user_data = {}
 def get_user_profile(user_id):
     if user_id not in user_data:
         user_data[user_id] = {
-            "balance": 0,  # Default balance 0 guunneerra akka sobaan hin hojjenne
+            "balance": 0,  # Default balance 0 guunneerra
             "output_mode": "PDF + ID",
             "photo_mode": "Grey",
             "template": "Template A",
@@ -190,7 +191,6 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await page.locator("button[type='submit']").click()
         await asyncio.sleep(5)
         
-        # Hojii xumurrnaan herrega hir'isna
         if prof["output_mode"] == "PDF Only":
             prof["balance"] -= 15
         else:
@@ -214,6 +214,9 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     safe_name = f"Fayda_ID_{user_id}"
     pdf_path = f"{safe_name}.pdf"
     c = canvas.Canvas(pdf_path, pagesize=letter)
+    
+    # HexColor itti fayyadamuu akka dandeenyuuf asirratti siriitti hojjeta
+    c.setFillColor(HexColor("#003366"))
     c.drawString(120, 600, f"FAN/FIN: {fan_number}")
     c.drawString(120, 570, "Status: Official National ID PDF Verified")
     c.showPage()
@@ -229,7 +232,6 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await status_msg.delete()
     return MAIN_MENU
 
-# Kaffaltii kalleattiin admin biraan gahuu (Security dabalameera)
 async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     user_id = user.id
@@ -244,17 +246,14 @@ async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         admin_alert += f"💬 Transaction ID/Text: `{update.message.text}`"
         await context.bot.send_message(chat_id=ADMIN_ID, text=admin_alert, parse_mode="Markdown")
         
-    # User-aaf deebii gabaabaa
     await update.message.reply_text("✅ **Kaffaltiin keessan gara Adminitti ergameera!**\nAdmin irra deebi'ee kaffaltii keessan yoo mirkaneessu, balance keessan ni guutama. Maaloo hangasitti eegaa.")
     return MAIN_MENU
 
-# Koodii Admin qofaaf tajaajilu (Herrega itti guutuuf)
 async def add_balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id != ADMIN_ID:
-        return # Admin qofaa danda'a
+        return 
         
     try:
-        # Fakkeenya: /add 123456789 100
         target_user_id = int(context.args[0])
         amount = int(context.args[1])
         
@@ -262,7 +261,6 @@ async def add_balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         prof["balance"] += amount
         
         await update.message.reply_text(f"✅ User `{target_user_id}`-iif {amount} ETB siriitti dabalameera. Balance isaa amma: {prof['balance']} ETB", parse_mode="Markdown")
-        # User-ichaaf kalleattiin notify gochuu
         await context.bot.send_message(chat_id=target_user_id, text=f"💰 **Herregni keessan mirkanaa'eera!**\nAdmin `{amount} ETB` balance keessan irratti dabalera. Amma tajaajilamuu dandeessu.")
     except Exception as e:
         await update.message.reply_text("❌ Dogoggora! Tartii kana hordofi: `/add <user_id> <amount>`")
@@ -304,7 +302,7 @@ if __name__ == '__main__':
         fallbacks=[CommandHandler("start", start)]
     )
     
-    app.add_handler(CommandHandler("add", add_balance_command)) # Admin koodii herrega guutu
+    app.add_handler(CommandHandler("add", add_balance_command))
     app.add_handler(conv_handler)
     print("Bot is successfully running...")
     app.run_polling()
