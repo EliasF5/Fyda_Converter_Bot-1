@@ -17,7 +17,6 @@ def home():
     return "Bot is running live and healthy! Developed for Elias Fikadu."
 
 def run_flask():
-    # Render irratti port 10000 ykn kan inni siif kenne kallattiin akka fattuuf
     port = int(os.environ.get('PORT', 10000))
     flask_app.run(host='0.0.0.0', port=port)
 
@@ -280,6 +279,7 @@ async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(f"Settings updated! Mode: {prof['output_mode']}")
     return MAIN_MENU
 
+# ===== CONVERSATION HANDLER SIRRIITTI CUFAMEERA =====
 if __name__ == '__main__':
     threading.Thread(target=run_flask, daemon=True).start()
     
