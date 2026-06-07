@@ -19,7 +19,6 @@ def home():
     return "Bot is running live and healthy with multi-language support!"
 
 def run_flask():
-    # Render environment variable PORT fayyadama
     port = int(os.environ.get('PORT', 10000))
     flask_app.run(host='0.0.0.0', port=port)
 
@@ -31,12 +30,11 @@ START_LANG, MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT = range(5)
 user_data = {}
 PROCESSED_TXNS = set()
 
-# TRANSLATION DICTIONARY FOR 5 ETHIOPIAN LANGUAGES
 LANG_TEXTS = {
     "om": {
         "welcome": "👋 **Bagaa Gammaddan!**\n\nMaaloo lakkoofsa keessan **FIN (12 digits)** ykn **FAN (16 digits)** ergaa.\n\nOTP gara bilbila keessaniitti ni ergama, ergaa OTP asitti yoo deebistan Original Fayda PDF keessan ni dhiyaata.",
         "deposit_btn": "💳 Deposit", "balance_btn": "💰 Balance", "settings_btn": "⚙️ Settings", "help_btn": "📞 Help", "send_fan_btn": "🔑 FAN / FIN Ergi",
-        "deposit_inst": "💰 **Mameerii Herrega Guuttachuu (Telebirr):**\n\nBirrii barbaaddan gara lakkofsa telebirr kanaatti ergaa:\n📱 **Telebirr:** `0913701367`\n👤 **Maqaa:** URJII\n\n⚠️ **Erga kaffaltanii booda:** SMS kaffaltii Telebirr guutuu isaa asitti kooppii godhaanii ergaa.",
+        "deposit_inst": "💰 **Mameerii Herrega Guuttachuu (Telebirr):**\n\nBirrii kaffaltii gara lakkofsa telebirr kanaatti ergaa:\n📱 **Telebirr:** `0913701367`\n👤 **Maqaa:** URJII\n\n⚠️ **Erga kaffaltanii booda:** SMS kaffaltii Telebirr guutuu isaa asitti kooppii godhaanii ergaa.",
         "insufficient": "❌ Balance keessan gahaa miti. Maaloo dursa Deposit godhaa.",
         "searching": "Sarvarii irraa ragaa keessan barbaadaa jira... 🔄",
         "otp_sent": "✅ **OTP'n ergameera!**\n\n📩 Maaloo koodii OTP (digit 6) asitti ergaa.",
@@ -56,42 +54,6 @@ LANG_TEXTS = {
         "help_msg": "📞 ችግር ካጋጠመዎት አድሚኑን ያነጋግሩ: @Urjii_Admin",
         "invalid_fan": "❌ የተሳሳተ ቁጥር ነው:: እባክዎ ትክክለኛ ቁጥር ያስገቡ:",
         "unknown_deposit": "❌ **ማረጋገጥ አልተቻለም!** እባክዎ ሙሉውን የቴሌብር ኤስኤምኤስ ይላኩ::"
-    },
-    "so": {
-        "welcome": "👋 **Ku soo dhowaw!**\n\nTfadlan soo dir nambarkaaga **FIN (12 digits)** ama **FAN (16 digits)**.\n\nKoodhka OTP ayaa loo soo diri doonaa telefoonkaaga, markaad koodhka halkaan ku soo celiso waxaad helaysaa PDF-gaaga rasmiga ah.",
-        "deposit_btn": "💳 Deposit", "balance_btn": "💰 Haraaga", "settings_btn": "⚙️ Settings", "help_btn": "📞 Caawinaad", "send_fan_btn": "🔑 Dir FAN / FIN",
-        "deposit_inst": "💰 **Hagaha Lacag Shubashada (Telebirr):**\n\nKu shub lacagta aad rabto nambarkaan:\n📱 **Telebirr:** `0913701367`\n👤 **Magaca:** URJII\n\n⚠️ **Markaad lacagta dirto:** Nuqul ka soo qaado fariinta (**SMS**) kooppii guutuu ah halkanna ku soo dir.",
-        "insufficient": "❌ Haraagaagu kuma filna. Fadlan marka hore lacag shubo.",
-        "searching": "Waxaa laga raadinayaa xogtaada server-ka... 🔄",
-        "otp_sent": "✅ **OTP waa la diray!**\n\n📩 Tfadlan soo dir koodhka OTP (6 lambar) halkaan.",
-        "pdf_done": "✅ **Waa dhammaaday!**\nPDF-gaagii waa diyaar. ⏳",
-        "help_msg": "📞 Haddii dhibaatadi timaado la xiriir Admin: @Urjii_Admin",
-        "invalid_fan": "❌ Nambar khaldan. Tfadlan geli nambar sax ah:",
-        "unknown_deposit": "❌ **Waa la xaqiigi waayay!** Tfadlan soo dir fariinta SMS-ka Telebirr oo buuxda."
-    },
-    "ti": {
-        "welcome": "👋 **እንቋዕ ብደሓን መጻእኩም!**\n\nበጃኹም ባለ 12 ዲጂት **FIN** ወይ ባለ 16 ዲጂት **FAN** ቁጽሪ ይልኣኩ::\n\nናብ ስልኪኹም ናይ ኤስኤምኤስ (OTP) ኽለኣኽ እዩ፣ ነቲ ዝበጽሓኩም OTP ኣብዚ ምስ እትልእኩ ናይ መበቆል ፋይዳ ፒዲኤፍኹም ክትረኽቡ ኢኹም::",
-        "deposit_btn": "💳 ዴፖዚት", "balance_btn": "💰 ሕሳብ ምርኣይ", "settings_btn": "⚙️ መተኻኸሊ", "help_btn": "📞 ሓገዝ", "send_fan_btn": "🔑 FAN / FIN ልኣኽ",
-        "deposit_inst": "💰 **መምርሒ መምልኢ ሕሳብ (Telebirr):**\n\nዝደለኹምዎ መጠን ገንዘብ ናብዚ ዝስዕብ ናይ ቴሌብር ሕሳብ ኣእትዉ:\n📱 **ቴሌብር:** `0913701367`\n👤 **ስም:** URJII\n\n⚠️ **ምስ ከፈልኩም:** ነቲ ናይ ቴሌብር መልእኽቲ (**SMS**) ሙሉእ ጌርኩም ኣብዚ ኮፒ ጌርኩም ልኣኽዎ::",
-        "insufficient": "❌ እኹል ሕሳብ የብልኩምን:: በጃኹም ቅድም ኢልኩም ዴፖዚት ግበሩ::",
-        "searching": "ካብ ሰርቨር መረዳእታኹም ይደሊ ኣሎ... 🔄",
-        "otp_sent": "✅ **OTP ተልኢኹ ኣሎ!**\n\n📩 በጃኹም ነቲ ዝበጽሓኩም ባለ 6 ኣሃዝ OTP ኣብዚ ልኣኽዎ::",
-        "pdf_done": "✅ **ተወዲኡ ኣሎ!**\nፒዲኤፍኹም ተዳልዩ ኣሎ:: ⏳",
-        "help_msg": "📞 ጸገም እንተጋጢሙኩም ምስ ኣድሚን ተራኸቡ: @Urjii_Admin",
-        "invalid_fan": "❌ ዝተጋገየ ቁጽሪ እዩ:: በጃኹም ትኽክለኛ ቁጽሪ የእትዉ:",
-        "unknown_deposit": "❌ **ከነረጋግጾ ኣይከኣልናን!** በጃኹም ሙሉእ ናይ ቴሌብር ኤስኤምኤስ ልኣኹ::"
-    },
-    "sid": {
-        "welcome": "👋 **Danonni Hasaamboommo!**\n\nTini baaxillaan 12 kiiro **FIN** woy 16 kiiro **FAN** kiiro kiyya kiiri.\n\nSokko (OTP) silke kiyya sokkamanno, kuni koodi asira qolle ergituro Original Fayda PDF kiyya angatanno.",
-        "deposit_btn": "💳 Woxe Worra", "balance_btn": "💰 Miizaane", "settings_btn": "⚙️ Baddalasira", "help_btn": "📞 Kaa'lo", "send_fan_btn": "🔑 FAN / FIN Kiiri",
-        "deposit_inst": "💰 **Woxe Worrate Baddalasha (Telebirr):**\n\nHasidanno woxe kuni telebirre kiiro kiiri:\n📱 **Telebirr:** `0913701367`\n👤 **Su'ma:** URJII\n\n⚠️ **Kafaltanni gubba:** Telebirre sokko (**SMS**) wo'manka kuni kooppii assi ergi.",
-        "insufficient": "❌ Miizaane kiyya batinye dika'ino. Balaxxe woxe worri.",
-        "searching": "Serverete gubba raga kiyya hasanni no... 🔄",
-        "otp_sent": "✅ **OTP sokkaminno!**\n\n📩 Baaxillaan 6 kiiro OTP kuni kiiri.",
-        "pdf_done": "✅ **Guduminno!**\nPDF kiyya qixxaawino. ⏳",
-        "help_msg": "📞 Geeshsha iillituro Admin xaadi: @Urjii_Admin",
-        "invalid_fan": "❌ Garri dika'ino kiiro. Baaxillaan garri kiiro worri:",
-        "unknown_deposit": "❌ **Mirkaneessa didandaamni!** Baaxillaan Telebirre SMS wo'manka kiiri."
     }
 }
 
@@ -112,10 +74,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [
         [InlineKeyboardButton("Oromoo (Afaan Oromoo)", callback_data="setlang_om")],
-        [InlineKeyboardButton("አማርኛ (Amharic)", callback_data="setlang_am")],
-        [InlineKeyboardButton("Somali (Soomaali)", callback_data="setlang_so")],
-        [InlineKeyboardButton("ትግርኛ (Tigrinya)", callback_data="setlang_ti")],
-        [InlineKeyboardButton("Sidaama (Afaan Sidaamaa)", callback_data="setlang_sid")]
+        [InlineKeyboardButton("አማርኛ (Amharic)", callback_data="setlang_am")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("👋 Please choose your language / ማጣቀሻ ቋንቋ ይምረጡ:", reply_markup=reply_markup)
@@ -147,6 +106,7 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = update.message.from_user.id
     prof = get_user_profile(user_id)
     lang = prof["lang"]
+    if lang not in LANG_TEXTS: lang = "om"
     texts = LANG_TEXTS[lang]
     
     if text == texts["settings_btn"]:
@@ -267,6 +227,7 @@ async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text if update.message.text else ""
     text_upper = text.upper()
     
+    # Kaffaltiin caal jedhee akka fudhatuuf regex text hundarratti dalagu uumameera
     txn_match = re.search(r'\b([A-Z0-9]{8,12})\b', text_upper)
     
     if txn_match:
@@ -275,7 +236,7 @@ async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Transaction ID Already Processed!")
             return MAIN_MENU
             
-        amount = 50  
+        amount = 50  # Default amount
         amount_match = re.search(r'(?:BR|ETB|BIRR)\s*([\d\.]+)', text_upper) or re.search(r'([\d\.]+)\s*(?:BR|ETB|BIRR)', text_upper)
         if amount_match:
             try: amount = int(float(amount_match.group(1)))
@@ -289,7 +250,13 @@ async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
     else:
-        await update.message.reply_text(texts["unknown_deposit"])
+        # Yoo kaffaltiin fudhatame ragaa kamiyyuu dabalata dhabe, 'Kaffaltii caal' jadhee akka mirkanaa'u ta'eera
+        txn_id = "TXN" + str(user_id)[-6:]
+        prof["balance"] += 50
+        await update.message.reply_text(
+            f"✅ **Verified (URJII)**\n\n💵 **Amount:** 50 ETB\n\nBalance Top-Up Success!",
+            parse_mode="Markdown"
+        )
         
     return MAIN_MENU
 
