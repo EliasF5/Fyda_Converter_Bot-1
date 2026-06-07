@@ -32,21 +32,21 @@ PROCESSED_TXNS = set()
 
 LANG_TEXTS = {
     "om": {
-        "welcome": "👋 **Bagaa Gammaddan!**\n\nMaaloo lakkoofsa keessan **FIN (12 digits)** ykn **FAN (16 digits)** ergaa.\n\nOTP gara bilbila keessaniitti ni ergama, ergaa OTP asitti yoo deebistan Original Fayda PDF keessan ni dhiyaata.",
+        "welcome": "👋 **Bagaa Gammaddan!**\n\nMaaloo lakkoofsa keessan **FIN (12 digits)** ykn **FAN (16 digits)** ergaa.\n\nNational ID Original PDF keessan isiniif ijaara.",
         "deposit_btn": "💳 Deposit", "balance_btn": "💰 Balance", "settings_btn": "⚙️ Settings", "help_btn": "📞 Help", "send_fan_btn": "🔑 FAN / FIN Ergi",
-        "deposit_inst": "💰 **Mameerii Herrega Guuttachuu (Telebirr):**\n\nBirrii kaffaltii gara lakkofsa telebirr kanaatti ergaa:\n📱 **Telebirr:** `0913701367`\n👤 **Maqaa:** URJII\n\n⚠️ **Erga kaffaltanii booda:** SMS kaffaltii Telebirr guutuu isaa asitti kooppii godhaanii ergaa.",
+        "deposit_inst": "💰 **Mameerii Herrega Guuttachuu (Telebirr):**\n\nBirrii kaffaltii gara lakkofsa telebirr kanaatti ergaa:\n📱 **Telebirr:** `0913701367`\n👤 **Maqaa:** URJII\n\n⚠️ **Erga kaffaltanii booda:** SMS kaffaltii Telebirr guutuu isaa kooppii godhaanii asitti ergaa ykn button **'✅ I have paid'** jedhu tuqaa.",
         "insufficient": "❌ Balance keessan gahaa miti. Maaloo dursa Deposit godhaa.",
         "searching": "Sarvarii irraa ragaa keessan barbaadaa jira... 🔄",
         "otp_sent": "✅ **OTP'n ergameera!**\n\n📩 Maaloo koodii OTP (digit 6) asitti ergaa.",
         "pdf_done": "✅ **Xumurameera!**\nPDF keessan qopha'eera. ⏳",
         "help_msg": "📞 Rakkon yoo uumame Admin qunnamaa: @Urjii_Admin",
         "invalid_fan": "❌ Lakkoofsa dogoggoraa. Maaloo lakkofsa sirrii galchaa:",
-        "unknown_deposit": "❌ **Mirkaneessuun hin danda'amne!** Maaloo SMS kaffaltii Telebirr guutuu isaa ergaa."
+        "unknown_deposit": "❌ **Mirkaneessuun hin danda'amne!** Maaloo SMS kaffaltii sirrii ta'e ergaa."
     },
     "am": {
-        "welcome": "👋 **እንኳን ደህና መጡ!**\n\nእባክዎን ባለ 12 ዲጂት **FIN** ወይም ባለ 16 ዲጂት **FAN** ቁጥርዎን ይላኩ::\n\nወደ ስልክዎ የኤስኤምኤስ (OTP) ይላካል፣ የደረሰዎትን OTP እዚህ ሲልኩ ኦሪጅናል የፋይዳ ፒዲኤፍዎን ያገኛሉ::",
+        "welcome": "👋 **እንኳን ደህና መጡ!**\n\nእባክዎን ባለ 12 ዲጂት **FIN** ወይም ባለ 16 ዲጂት **FAN** ቁጥርዎን ይላኩ::\n\nኦሪጅናል የፋይዳ ፒዲኤፍዎን ያገኛሉ::",
         "deposit_btn": "💳 ዴፖዚት", "balance_btn": "💰 ሂሳብ ማሳያ", "settings_btn": "⚙️ ማስተካከያ", "help_btn": "📞 እርዳታ", "send_fan_btn": "🔑 FAN / FIN ላክ",
-        "deposit_inst": "💰 **የአካውንት መሙያ መመሪያ (Telebirr):**\n\nየፈለጉትን የገንዘብ መጠን ወደዚህ የቴሌብር አካውንት ያስገቡ:\n📱 **ቴሌብር ቁጥር:** `0913701367`\n👤 **ስም:** URJII\n\n⚠️ **ከከፈሉ በኋላ:** የቴሌብር የክፍያ መልዕክት (**SMS**) ሙሉውን እዚህ ኮፒ አድርገው ይላኩ::",
+        "deposit_inst": "💰 **የአካውንት መሙያ መመሪያ (Telebirr):**\n\nየፈለጉትን የገንዘብ መጠን ወደዚህ የቴሌብር አካውንት ያስገቡ:\n📱 **ቴሌብር ቁጥር:** `0913701367`\n👤 **ስም:** URJII\n\n⚠️ **ከከፈሉ በኋላ:** የቴሌብር ኤስኤምኤስ (SMS) ሙሉውን እዚህ ይላኩ ወይም **'✅ I have paid'** የሚለውን ይጫኑ::",
         "insufficient": "❌ በቂ ሂሳብ የሎትም:: እባክዎ አስቀድመው ዴፖዚት ያድርጉ::",
         "searching": "ከሰርቨር ላይ መረጃዎን በመፈለግ ላይ ነው... 🔄",
         "otp_sent": "✅ **OTP ተልኳል!**\n\n📩 እባክዎን የደረሰዎትን ባለ 6 አሃዝ OTP እዚህ ይላኩ::",
@@ -121,7 +121,9 @@ async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(f"💵 **Wallet Balance:** {prof['balance']} ETB", parse_mode="Markdown")
         return MAIN_MENU
     elif text == texts["deposit_btn"]:
-        await update.message.reply_text(texts["deposit_inst"], parse_mode="Markdown")
+        # Inline Button kaffaltii "I have paid" jedhu dabalataan asitti itti fida
+        keyboard = [[InlineKeyboardButton("✅ I have paid / Kaffaleera", callback_data="btn_paid")]]
+        await update.message.reply_text(texts["deposit_inst"], reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return GET_DEPOSIT
     elif text == texts["send_fan_btn"] or (len(text) >= 12 and text.isdigit()):
         if len(text) >= 12 and text.isdigit():
@@ -161,6 +163,10 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         return MAIN_MENU
         
     status_msg = await update.message.reply_text(texts["searching"])
+    
+    # 3 second haraa eeguudhaaf akka server hojjetu namatti agarsiisuuf
+    await asyncio.sleep(3)
+    
     p = await async_playwright().start()
     browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--single-process"])
     page = await browser.new_page()
@@ -193,101 +199,4 @@ async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     prof["balance"] -= 35 
     safe_name = final_name.replace(" ", "_")
-    pdf_path = f"{safe_name}.pdf"
-    
-    c = canvas.Canvas(pdf_path, pagesize=letter)
-    c.setStrokeColor(HexColor("#0056b3"))
-    c.setFillColor(HexColor("#f8f9fa"))
-    c.rect(100, 450, 380, 220, stroke=1, fill=1)
-    c.setFillColor(HexColor("#0056b3"))
-    c.rect(100, 640, 380, 30, stroke=0, fill=1)
-    c.setFillColor(HexColor("#ffffff"))
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(150, 650, "FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA")
-    c.setFillColor(HexColor("#000000"))
-    c.drawString(120, 600, f"Name: {final_name}")
-    c.drawString(120, 570, f"FAN/FIN: {fan_number}")
-    c.showPage()
-    c.save()
-    
-    with open(pdf_path, 'rb') as f:
-        await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf")
-        
-    try: os.remove(pdf_path)
-    except: pass
-    
-    prof["session"] = {}
-    await status_msg.delete()
-    return MAIN_MENU
-
-async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-    prof = get_user_profile(user_id)
-    texts = LANG_TEXTS[prof["lang"]]
-    text = update.message.text if update.message.text else ""
-    text_upper = text.upper()
-    
-    # Kaffaltiin caal jedhee akka fudhatuuf regex text hundarratti dalagu uumameera
-    txn_match = re.search(r'\b([A-Z0-9]{8,12})\b', text_upper)
-    
-    if txn_match:
-        txn_id = txn_match.group(1)
-        if txn_id in PROCESSED_TXNS:
-            await update.message.reply_text("❌ Transaction ID Already Processed!")
-            return MAIN_MENU
-            
-        amount = 50  # Default amount
-        amount_match = re.search(r'(?:BR|ETB|BIRR)\s*([\d\.]+)', text_upper) or re.search(r'([\d\.]+)\s*(?:BR|ETB|BIRR)', text_upper)
-        if amount_match:
-            try: amount = int(float(amount_match.group(1)))
-            except: pass
-            
-        PROCESSED_TXNS.add(txn_id)
-        prof["balance"] += amount
-        
-        await update.message.reply_text(
-            f"✅ **Verified (URJII)**\n\n🆔 **Txn ID:** `{txn_id}`\n💵 **Amount:** {amount} ETB\n\nBalance Top-Up Success!",
-            parse_mode="Markdown"
-        )
-    else:
-        # Yoo kaffaltiin fudhatame ragaa kamiyyuu dabalata dhabe, 'Kaffaltii caal' jadhee akka mirkanaa'u ta'eera
-        txn_id = "TXN" + str(user_id)[-6:]
-        prof["balance"] += 50
-        await update.message.reply_text(
-            f"✅ **Verified (URJII)**\n\n💵 **Amount:** 50 ETB\n\nBalance Top-Up Success!",
-            parse_mode="Markdown"
-        )
-        
-    return MAIN_MENU
-
-async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    prof = get_user_profile(user_id)
-    
-    if query.data == "toggle_out_pdf": prof["output_mode"] = "PDF Only"
-    elif query.data == "toggle_out_both": prof["output_mode"] = "PDF + ID"
-    elif query.data == "toggle_photo_color": prof["photo_mode"] = "Color"
-    elif query.data == "toggle_photo_grey": prof["photo_mode"] = "Grey"
-    
-    await query.edit_message_text(f"Settings updated! Mode: {prof['output_mode']}")
-
-if __name__ == '__main__':
-    threading.Thread(target=run_flask, daemon=True).start()
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start), MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options)],
-        states={
-            START_LANG: [CallbackQueryHandler(lang_callback, pattern="^setlang_")],
-            MAIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options), CallbackQueryHandler(settings_callback)],
-            GET_FAN: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_fan_state)],
-            GET_OTP: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_otp_state)],
-            GET_DEPOSIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_deposit)]
-        },
-        fallbacks=[CommandHandler("start", start)]
-    )
-    
-    app.add_handler(conv_handler)
-    app.run_polling()
+    pdf
