@@ -15,7 +15,7 @@ flask_app = Flask('')
 
 @flask_app.route('/')
 def home():
-    return "Bot is running live and healthy! Developed for Elias Fikadu."
+    return "Bot is running live and healthy! Developed for URJII."
 
 def run_flask():
     port = int(os.environ.get('PORT', 10000))
@@ -32,7 +32,7 @@ LANG_TEXTS = {
     "om": {
         "welcome": "👋 **Baga nagaan dhuftan!**\n\nMaaloo lakkoofsa **FIN (12 digits)** ykn **FAN (16 digits)** keessan naaf ergaa.\nNational ID Original PDF keessan isiniif ijaara.",
         "deposit_btn": "💳 Deposit", "balance_btn": "💰 Balance", "settings_btn": "⚙️ Settings", "help_btn": "📞 Help", "send_fan_btn": "🔑 FAN / FIN Ergi",
-        "deposit_inst": "💰 **Mameerii Herrega Guuttachuu (Telebirr):**\n\nBirrii kaffaltii gara lakkofsa telebirr kanaatti ergaa:\n📱 **Telebirr:** `0913701367`\n👤 **Maqaa:** ELIAS FIKADU\n\n⚠️ **Erga kaffaltanii booda:** Gadi lakkisaa itti aanuun button **'✅ I have paid'** jedhu tuqaa, sana booda screenshot ykn koodii kaffaltii ergaa.",
+        "deposit_inst": "💰 **Mameerii Herrega Guuttachuu (Telebirr):**\n\nBirrii kaffaltii gara lakkofsa telebirr kanaatti ergaa:\n📱 **Telebirr:** `0913701367`\n👤 **Maqaa:** URJII\n\n⚠️ **Erga kaffaltanii booda:** Gadi lakkisaa itti aanuun button **'✅ I have paid'** jedhu tuqaa, sana booda screenshot ykn koodii kaffaltii ergaa.",
         "insufficient": "❌ Balance keessan gahaa miti. Maaloo dursa Deposit godhaa.",
         "searching": "Sarvarii irraa ragaa keessan barbaadaa jira... 🔄",
         "otp_sent": "✅ **OTP'n ergameera!**\n\n📩 Maaloo koodii OTP (digit 6) asitti ergaa.",
@@ -44,7 +44,7 @@ LANG_TEXTS = {
     "am": {
         "welcome": "👋 **እንኳን ደህና መጡ!**\n\nእባክዎን ባለ 12 ዲጂት **FIN** ወይም ባለ 16 ዲጂት **FAN** ቁጥርዎን ይላኩ::\nኦሪጅናል የፋይዳ ፒዲኤፍዎን ያገኛሉ::",
         "deposit_btn": "💳 ዴፖዚት", "balance_btn": "💰 ሂሳብ ማሳያ", "settings_btn": "⚙️ ማስተካከያ", "help_btn": "📞 እርዳታ", "send_fan_btn": "🔑 FAN / FIN ላክ",
-        "deposit_inst": "💰 **የአካውንት መሙያ መመሪያ (Telebirr):**\n\nየፈለጉትን የገንዘብ መጠን ወደዚህ የቴሌብር አካውንት ያስገቡ:\n📱 **ቴሌብር ቁጥር:** `0913701367`\n👤 **ስም:** ELIAS FIKADU\n\n⚠️ **ከከፈሉ በኋላ:** እባክዎን **'✅ I have paid'** የሚለውን ይጫኑ:: ከዚያም ማረጋገጫ ይላኩ::",
+        "deposit_inst": "💰 **የአካውንት መሙያ መመሪያ (Telebirr):**\n\nየፈለጉትን የገንዘብ መጠን ወደዚህ የቴሌብር አካውንት ያስገቡ:\n📱 **ቴሌብር ቁጥር:** `0913701367`\n👤 **ስም:** URJII\n\n⚠️ **ከከፈሉ በኋላ:** እባክዎን **'✅ I have paid'** የሚለውን ይጫኑ:: ከዚያም ማረጋገጫ ይላኩ::",
         "insufficient": "❌ በቂ ሂሳብ የሎትም:: እባክዎ አስቀድመው ዴፖዚት ያድርጉ::",
         "searching": "ከሰርቨር ላይ መረጃዎን በመፈለግ ላይ ነው... 🔄",
         "otp_sent": "✅ **OTP ተልኳል!**\n\n📩 እባክዎን የደረሰዎትን ባለ 6 አሃዝ OTP እዚህ ይላኩ::",
@@ -149,7 +149,7 @@ async def handle_deposit_logic(update: Update, context: ContextTypes.DEFAULT_TYP
     prof["balance"] += amount
     
     success_text = (
-        f"✅ **Kaffaltiini Keessan Mirkanaa'eera! (ELIAS FIKADU)**\n\n"
+        f"✅ **Kaffaltiini Keessan Mirkanaa'eera! (URJII)**\n\n"
         f"💵 **{amount} ETB** Balance keessan irratti dabalameera. Hojii keessan itti fufaa!"
     )
     await context.bot.send_message(chat_id=user_id, text=success_text, parse_mode="Markdown")
@@ -224,7 +224,10 @@ async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     await asyncio.sleep(2)
     
     p = await async_playwright().start()
-    browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--single-process"])
+    browser = await p.chromium.launch(
+        headless=True, 
+        args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
+    )
     page = await browser.new_page()
     
     try:
