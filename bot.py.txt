@@ -9,7 +9,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
 
-# 1. Web Service Setup for Render (Port binding)
+# 1. Web Service Setup for Render (Port binding for uptime)
 flask_app = Flask('')
 
 @flask_app.route('/')
@@ -162,3 +162,143 @@ async def deposit_callback_handler(update: Update, context: ContextTypes.DEFAULT
             [InlineKeyboardButton("5 Pdf = 75 ETB", callback_data="amt_75"), InlineKeyboardButton("10 Pdf = 150 ETB", callback_data="amt_150")],
             [InlineKeyboardButton("20 Pdf = 300 ETB", callback_data="amt_300"), InlineKeyboardButton("30 Pdf = 450 ETB", callback_data="amt_450")],
             [InlineKeyboardButton("50 Pdf = 750 ETB", callback_data="amt_750"), InlineKeyboardButton("100 Pdf = 1500 ETB", callback_data="amt_1500")],
+            [InlineKeyboardButton("🚀 200 + free 15 Pdf = 3000 ETB", callback_data="amt_3000")],
+            [InlineKeyboardButton("⭐ 300 + free 30 Pdf = 4500 ETB", callback_data="amt_4500")],
+            [InlineKeyboardButton("💎 500 + free 60 Pdf = 7500 ETB", callback_data="amt_7500")],
+            [InlineKeyboardButton("👑 1000 + free 150 Pdf = 15000 ETB", callback_data="amt_15000")]
+        ]
+        await query.message.edit_text("🔻 **Select a top-up amount below:**\n\n👇 Qapxii/Button Kaffaltii Galchitan Filadhaa:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return GET_AMOUNT_SELECTION
+    elif query.data == "btn_back_main":
+        texts = LANG_TEXTS[prof["lang"]]
+        keyboard = [
+            [KeyboardButton(texts["send_fan_btn"])],
+            [KeyboardButton(texts["settings_btn"]), KeyboardButton(texts["balance_btn"])],
+            [KeyboardButton(texts["deposit_btn"]), KeyboardButton(texts["help_btn"])]
+        ]
+        await query.message.delete()
+        await context.bot.send_message(chat_id=user_id, text=texts["welcome"], reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True), parse_mode="Markdown")
+        return MAIN_MENU
+
+async def amount_selection_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    
+    amount_map = {
+        "amt_75": 75, "amt_150": 150, "amt_300": 300, "amt_450": 450,
+        "amt_750": 750, "amt_1500": 1500, "amt_3000": 3000, "amt_4500": 4500,
+        "amt_7500": 7500, "amt_15000": 15000
+    }
+    
+    selected_amount = amount_map.get(data, 50)
+    await query.message.delete()
+    return await handle_deposit_logic(update, context, amount=selected_amount)
+
+async def handle_fan_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    fan_number = update.message.text.strip()
+    user_id = update.message.from_user.id
+    prof = get_user_profile(user_id)
+    texts = LANG_TEXTS[prof["lang"]]
+    
+    if not fan_number.isdigit() or len(fan_number) < 12:
+        await update.message.reply_text(texts["invalid_fan"])
+        return GET_FAN
+    context.user_data["current_fan"] = fan_number
+    return await process_fan_input(update, context, fan_number)
+
+async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, fan_number):
+    user_id = update.message.from_user.id
+    prof = get_user_profile(user_id)
+    texts = LANG_TEXTS[prof["lang"]]
+    
+    if prof["balance"] < 15:
+        await update.message.reply_text(texts["insufficient"])
+        return MAIN_MENU
+        
+    status_msg = await update.message.reply_text(texts["searching"])
+    await asyncio.sleep(1.5)
+    prof["session"] = {"mock": True, "fan": fan_number}
+    
+    await status_msg.edit_text(texts["otp_sent"])
+    return GET_OTP
+
+async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    prof = get_user_profile(user_id)
+    texts = LANG_TEXTS[prof["lang"]]
+    
+    status_msg = await update.message.reply_text(texts["pdf_done"])
+    final_name = "Belay Mokonin Guta"
+    fan_number = prof["session"].get("fan", "2391630461096705")
+    
+    prof["balance"] -= 35 
+    safe_name = final_name.replace(" ", "_")
+    pdf_path = f"{safe_name}.pdf"
+    
+    c = canvas.Canvas(pdf_path, pagesize=letter)
+    c.setStrokeColor(HexColor("#0056b3"))
+    c.setFillColor(HexColor("#f8f9fa"))
+    c.rect(100, 450, 380, 220, stroke=1, fill=1)
+    c.setFillColor(HexColor("#0056b3"))
+    c.rect(100, 640, 380, 30, stroke=0, fill=1)
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(150, 650, "FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA")
+    c.setFillColor(HexColor("#000000"))
+    c.drawString(120, 600, f"Name: {final_name}")
+    c.drawString(120, 570, f"FAN/FIN: {fan_number}")
+    c.showPage()
+    c.save()
+    
+    with open(pdf_path, 'rb') as f:
+        await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf")
+        
+    try:
+        os.remove(pdf_path)
+    except:
+        pass
+    
+    prof["session"] = {}
+    await status_msg.delete()
+    return MAIN_MENU
+
+async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    prof = get_user_profile(user_id)
+    
+    if query.data == "toggle_out_pdf": prof["output_mode"] = "PDF Only"
+    elif query.data == "toggle_out_both": prof["output_mode"] = "PDF + ID"
+    elif query.data == "toggle_photo_color": prof["photo_mode"] = "Color"
+    elif query.data == "toggle_photo_grey": prof["photo_mode"] = "Grey"
+    
+    await query.edit_message_text(f"Settings updated! Mode: {prof['output_mode']}")
+    return MAIN_MENU
+
+if __name__ == '__main__':
+    threading.Thread(target=run_flask, daemon=True).start()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start)],
+        states={
+            START_LANG: [CallbackQueryHandler(lang_callback, pattern="^setlang_")],
+            MAIN_MENU: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options), 
+                CallbackQueryHandler(settings_callback)
+            ],
+            GET_FAN: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_fan_state)],
+            GET_OTP: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_otp_state)],
+            GET_DEPOSIT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_deposit_state_options),
+                CallbackQueryHandler(deposit_callback_handler, pattern="^(btn_ihavepaid|btn_back_main)$")
+            ],
+            GET_AMOUNT_SELECTION: [CallbackQueryHandler(amount_selection_callback, pattern="^amt_")]
+        ],
+        fallbacks=[CommandHandler("start", start), MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options)]
+    )
+    
+    app.add_handler(conv_handler)
+    app.run_polling()
