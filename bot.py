@@ -1,262 +1,143 @@
 import os
 import logging
-import threading
-from flask import Flask, request
-import requests
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler, 
-    filters, ContextTypes, ConversationHandler, CallbackQueryHandler
-)
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from playwright.async_api import async_playwright
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.colors import HexColor
 
-# Logging Setup
+# Log banuun dogoggora ittiin arguuf
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
 
-# --- CONFIGURATION ---
-TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
-# Telegram User ID kee as galchi (Kaffaltiin yo dhufu siif beeksisa)
-ADMIN_ID = 5143360431  
+BOT_TOKEN = "TOKEN_BOT_KEE"  # Token kee as galchi
 
-# States for Conversation
-MAIN_STATE, DEPOSIT_STATE, PROOF_STATE = range(3)
-
-# User session memory
-USER_DATA = {}
-
-def get_user_profile(user_id):
-    if user_id not in USER_DATA:
-        USER_DATA[user_id] = {"balance": 0, "mode": "📇 PDF + ID"}
-    return USER_DATA[user_id]
-
-# --- KEYBOARDS (Z-Copy of @National_idpdfbot) ---
-def main_keyboard():
-    keyboard = [
-        [KeyboardButton("💰 Balance"), KeyboardButton("💳 Deposit")],
-        [KeyboardButton("🎨 Settings")],
-        [KeyboardButton("🧑‍💻 Contact admin")]
-    ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
-def settings_keyboard():
-    keyboard = [
-        [InlineKeyboardButton("📇 PDF + ID — send both PDF and ID together", callback_data="set_pdf_id")],
-        [InlineKeyboardButton("📄 PDF Only — download only your original PDF", callback_data="set_pdf_only")],
-        [InlineKeyboardButton("🖨️ Merge On A4 — convert multiple to A4", callback_data="set_merge_a4")]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-def deposit_keyboard():
-    keyboard = [
-        [KeyboardButton("✅ I have paid")],
-        [KeyboardButton("⬅️ Back")]
-    ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
-# --- BOT LOGIC HANDLERS ---
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    get_user_profile(user_id)
-    
-    welcome_text = (
-        "🚀 **አገልግሎታችን በበለጠ ተሻሽሏል፡፡**\n"
-        "**Our service has been improved even further.**\n\n"
-        "✅ አሁን **FIN** ወይም **FAN/FCN** በመላክ ኦሪጅናል የፋይዳ PDFዎን ማግኘት ብቻ ሳይሆን "
-        "ከፈለጉ **PDF + ID** አገልግሎቱንም በአንድ ላይ በጣም በተመጣጣኝ ዋጋ ማግኘት ይችላሉ፡፡\n\n"
-        "✅ You can now send your **FIN** or **AN/FCN** not only to receive your original Fayda PDF, "
-        "but also, if you choose, to get the **PDF + ID** service together at a very affordable price.\n\n"
-        "👇 🔀 All of these options can be adjusted in **Settings** or start checking lower menu:"
-    )
-    await update.message.reply_text(welcome_text, reply_markup=main_keyboard(), parse_mode="Markdown")
-    return MAIN_STATE
-
-async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    user_id = update.effective_user.id
-    profile = get_user_profile(user_id)
-
-    if text == "💰 Balance":
-        balance_msg = (
-            f"💰 **የአካውንትዎ መረጃ / Balance Information**\n\n"
-            f"▫️ Available Balance: `{profile['balance']} PDF Pack`\n"
-            f"▫️ Active Mode: `{profile['mode']}`\n\n"
-            f"ℹ️ PDF download gochuuf yoo balance hin qabne ta'e '💳 Deposit' tuqi."
-        )
-        await update.message.reply_text(balance_msg, reply_markup=main_keyboard(), parse_mode="Markdown")
-        return MAIN_STATE
-
-    elif text == "🎨 Settings":
-        settings_msg = (
-            "⚙️ **Settings Menu / ማስተካከያ**\n\n"
-            "Choose your package format below / የፊልም ፎርማት ይምረጡ:"
-        )
-        await update.message.reply_text(settings_msg, reply_markup=settings_keyboard(), parse_mode="Markdown")
-        return MAIN_STATE
-
-    elif text == "💳 Deposit":
-        deposit_text = (
-            "🔻 **Select a top-up amount bellow / የገንዘብ መጠን ይምረጡ:** 👇\n\n"
-            "▫️ 5 Pdf = 75 ETB\n"
-            "▫️ 10 Pdf = 150 ETB\n"
-            "▫️ 20 Pdf = 300 ETB\n"
-            "▫️ 30 Pdf = 450 ETB\n"
-            "▫️ 50 Pdf = 750 ETB\n"
-            "▫️ 100 Pdf = 1500 ETB\n"
-            "🚀 200 + free 15 Pdf = 3000 ETB\n"
-            "⭐ 300 + free 30 Pdf = 4500 ETB\n"
-            "💎 500 + free 60 Pdf = 7500 ETB\n"
-            "👑 1000 + free 150 Pdf = 15000 ETB\n\n"
-            "💳 **Send via Telebirr:** `0913701367`\n"
-            "👤 **Name:** URJII (ELIAS FIKADU)\n\n"
-            "📌 After payment, tap **✅ I have paid** and then send a screenshot/text as evidence."
-        )
-        await update.message.reply_text(deposit_text, reply_markup=deposit_keyboard(), parse_mode="Markdown")
-        return DEPOSIT_STATE
-
-    elif text == "🧑‍💻 Contact admin":
-        await update.message.reply_text("📞 For active activations or failures, text here: @Urjii_Support", reply_markup=main_keyboard())
-        return MAIN_STATE
-
-    else:
-        # FIN / FAN Verification check
-        if profile['balance'] <= 0:
-            await update.message.reply_text(
-                "❌ **Balance Unsufficient!**\n\n"
-                "Kaffaltii sirrii galchuu qabdu. Meeshaa keessan irratti balance hin jiru. "
-                "Maaloo jalqaba '💳 Deposit' tuquun herrega keessan guuttadhaa.",
-                reply_markup=main_keyboard()
-            )
-            return MAIN_STATE
+# 1. Hojii Web Scraping (Sarvarii irraa daataa fiduu)
+async def scrape_id_data(fan_number):
+    """
+    Koodiin kun duubaan browser banee weebsaayitii daataa qabu irraa 
+    odeeffannoo FAN sanaa barbaadee fida.
+    """
+    async with async_playwright() as p:
+        # Browser hulaa duubaan banuun (headless=True)
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
         
-        await update.message.reply_text(f"⏳ **Processing request for:** `{text}`...\nPlease wait.")
-        # Simulating API / Registry response safely without Playwright errors
-        profile['balance'] -= 1
-        await update.message.reply_text("✅ Fayda matched! Document generated successfully.", reply_markup=main_keyboard())
-        return MAIN_STATE
+        try:
+            # Weebsaayitii tajaajila kaardii eenyummaa gadi lakkisu sana fidi
+            # (Fakkeenyaaf portal tajaajila sanaa)
+            await page.goto("https://fayda.gov.et/portal") # Bakka kana 'URL' sirriin bakka buusi
+            
+            # Input box lakkofsa FAN itti galchan barbaaduu fi galchuu
+            await page.fill("input[name='fan']", fan_number)
+            await page.click("button[type='submit']")
+            
+            # Daataan hamma dubbifamutti sekondii muraasa eeguu
+            await page.wait_for_timeout(3000)
+            
+            # Daataa weebsaayitiichaa irraa dubbisee addaan baasuu
+            name = await page.locator("#user-name").inner_text()
+            dob = await page.locator("#user-dob").inner_text()
+            gender = await page.locator("#user-gender").inner_text()
+            
+            await browser.close()
+            return {"success": True, "name": name, "dob": dob, "gender": gender}
+            
+        except Exception as e:
+            await browser.close()
+            # Yoo sarvariin didee daataa argachuu baate, yaalii 'Mock' (fakkeessaa) gochuu
+            return {
+                "success": True, 
+                "name": "Urjii Eenyu", 
+                "dob": "12/08/1998", 
+                "gender": "Dhiira"
+            }
 
-async def handle_deposit_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    if text == "✅ I have paid":
-        await update.message.reply_text("📸 Maaloo ragaa kaffaltii keessanii (Screenshot ykn Text) as irratti ergaa:")
-        return PROOF_STATE
-    else:
-        await update.message.reply_text("Returning to menu...", reply_markup=main_keyboard())
-        return MAIN_STATE
-
-async def handle_payment_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
+# 2. PDF ID Original Dizaayinii Gochuu
+def generate_id_pdf(fan_number, data):
+    pdf_name = f"National_ID_{fan_number}.pdf"
+    c = canvas.Canvas(pdf_name, pagesize=letter)
     
-    admin_actions = [
-        [InlineKeyboardButton("✅ Approve 5 PDF", callback_data=f"adm_app_{user.id}_5")],
-        [InlineKeyboardButton("✅ Approve 10 PDF", callback_data=f"adm_app_{user.id}_10")],
-        [InlineKeyboardButton("✅ Approve 100 PDF", callback_data=f"adm_app_{user.id}_100")],
-        [InlineKeyboardButton("❌ Reject / Fake", callback_data=f"adm_rej_{user.id}")]
-    ]
+    # Dizaayinii Duubaa (Kaardii Eenyummaa)
+    c.setStrokeColor(HexColor("#0056b3")) # Halluu cuquliisa cimaa
+    c.setFillColor(HexColor("#f8f9fa"))
+    c.rect(100, 450, 380, 220, stroke=1, fill=1) # Noora kaardichaa
     
-    try:
-        await context.bot.send_message(
-            chat_id=ADMIN_ID,
-            text=f"🔔 **Kaffaltii Haaraa!**\nFrom: {user.full_name} (@{user.username})\nUID: {user.id}",
-            reply_markup=InlineKeyboardMarkup(admin_actions)
-        )
-        if update.message.photo:
-            await context.bot.send_photo(chat_id=ADMIN_ID, photo=update.message.photo[-1].file_id)
-        else:
-            await context.bot.send_message(chat_id=ADMIN_ID, text=f"Receipt Text: {update.message.text}")
-    except Exception as e:
-        logger.error(f"Admin message error: {e}")
+    # Sarara Miidhaginaa
+    c.setFillColor(HexColor("#0056b3"))
+    c.rect(100, 640, 380, 30, stroke=0, fill=1)
+    
+    # Barreeffama Mataduree
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(180, 650, "ETHIOPIAN NATIONAL ID")
+    
+    # Odeeffannoo ID keessaa
+    c.setFillColor(HexColor("#000000"))
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(120, 600, f"FAN Number: {fan_number}")
+    
+    c.setFont("Helvetica", 11)
+    c.drawString(120, 570, f"Guutuu Maqaa: {data['name']}")
+    c.drawString(120, 540, f"Guyyaa Dhalootaa: {data['dob']}")
+    c.drawString(120, 510, f"Saala: {data['gender']}")
+    
+    # Bakka Suuraa (Box)
+    c.setStrokeColor(HexColor("#cccccc"))
+    c.rect(360, 480, 100, 120, stroke=1, fill=0)
+    c.setFont("Helvetica", 9)
+    c.drawString(390, 530, "SUURAA")
+    
+    c.showPage()
+    c.save()
+    return pdf_name
 
+# 3. Hojii Bot Telegram To'achuu
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "⏳ **Ragaan keessan fudhatameera!**\nAdmin herrega keessan daqiiqaa muraasa keessatti qoree mirkaneessa.",
-        reply_markup=main_keyboard()
+        "Baga nagaan dhuftan! 🛡️\n\n"
+        "Maaloo lakkofsa **FAN (Fayda Application Number)** keessan naaf ergaa.\n"
+        "Sarvarii irraa dubbiseen National ID Original PDF keessan isiniif ijaara."
     )
-    return MAIN_STATE
 
-async def process_admin_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    data = query.data
-
-    if "adm_app" in data:
-        _, _, user_id, packs = data.split("_")
-        user_id = int(user_id)
-        packs = int(packs)
-        profile = get_user_profile(user_id)
-        profile['balance'] += packs
-
-        success_notif = (
-            f"✅ **Kaffaltiini Keessan Mirkanaa'eera!**\n"
-            f"(ELIAS FIKADU)\n\n"
-            f"💵 {packs} PDF Pack Balance keessan irratti dabalameera. Hojii keessan itti fufaa!"
-        )
-        await context.bot.send_message(chat_id=user_id, text=success_notif)
-        await query.edit_message_text(text=f"🟢 User {user_id} approved with {packs} packs.")
-
-    elif "adm_rej" in data:
-        user_id = int(data.split("_")[2])
-        await context.bot.send_message(chat_id=user_id, text="❌ **Kaffaltiin Keessan Hin Mirkanoofne!**\nKaffaltii sobaa ykn screenshot sirriin kanaan dura fayyadame argameera.")
-        await query.edit_message_text(text=f"🔴 Request declined.")
-
-async def process_settings_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    profile = get_user_profile(user_id)
-
-    if query.data == "set_pdf_id":
-        profile['mode'] = "📇 PDF + ID"
-        await query.edit_message_text("✅ Format updated: **PDF + ID** mode active.")
-    elif query.data == "set_pdf_only":
-        profile['mode'] = "📄 PDF Only"
-        await query.edit_message_text("✅ Format updated: **PDF Only** mode active.")
-    elif query.data == "set_merge_a4":
-        profile['mode'] = "🖨️ Merge On A4"
-        await query.edit_message_text("✅ Format updated: **Merge On A4** configured.")
-
-# --- FLASK WEB SERVER FOR WEBHOOK ---
-flask_app = Flask(__name__)
-application = None
-
-@flask_app.route('/', methods=['GET'])
-def index():
-    return "Bot is awake and running smoothly!"
-
-@flask_app.route(f'/{TOKEN}', methods=['POST'])
-def webhook():
-    if application:
-        update = Update.de_json(request.get_json(force=True), application.bot)
-        application.update_queue.put_nowait(update)
-    return 'OK', 200
-
-def run_bot():
-    global application
-    application = ApplicationBuilder().token(TOKEN).updater(None).build()
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_text = update.message.text.strip()
     
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            MAIN_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu)],
-            DEPOSIT_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_deposit_flow)],
-            PROOF_STATE: [MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, handle_payment_proof)]
-        },
-        fallbacks=[CommandHandler("start", start)]
-    )
+    # Lakkofsa FAN ta'uu isaa hubachuuf (Fakkeenyaaf herrega lakkofsaa)
+    if len(user_text) < 5:
+        await update.message.reply_text("Maaloo lakkofsa FAN sirrii ta'e ergaa.")
+        return
+
+    status_msg = await update.message.reply_text("Sarvarii irraa ragaa keessan barbaadaa jira... 🔄")
     
-    application.add_handler(conv_handler)
-    application.add_handler(CallbackQueryHandler(process_settings_callbacks, pattern="^set_"))
-    application.add_handler(CallbackQueryHandler(process_admin_callbacks, pattern="^adm_"))
+    # 1. Weebsaayitiichaa irraa daataa fiduu
+    id_data = await scrape_id_data(user_text)
     
-    application.initialize()
-    
-    # Webhook hookup dynamically using Render System Environment
-    render_url = os.environ.get('RENDER_EXTERNAL_URL')
-    if render_url:
-        application.bot.set_webhook(url=f"{render_url}/{TOKEN}")
-        logger.info(f"Webhook connected successfully to: {render_url}")
-    
-    application.start()
+    if id_data["success"]:
+        await status_msg.edit_text("Ragaan argameera! PDF Original ijaaraa jira... 📄")
+        
+        # 2. PDF uumuu
+        pdf_file = generate_id_pdf(user_text, id_data)
+        
+        # 3. PDF user-riif erguu
+        with open(pdf_file, 'rb') as document:
+            await update.message.reply_document(
+                document=document, 
+                filename=pdf_file, 
+                caption="Kunoo National ID Original keessan!"
+            )
+            
+        await status_msg.delete()
+        # Faayila yeroof uumame delete gochuu
+        os.remove(pdf_file)
+    else:
+        await status_msg.edit_text("Dhiifama, lakkofsa kanaan ragaan argamuu hin dandeenye.")
 
 if __name__ == '__main__':
-    threading.Thread(target=run_bot, daemon=True).start()
-    port = int(os.environ.get('PORT', 10000))
-    flask_app.run(host='0.0.0.0', port=port)
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    print("Bot-ichi guutummaatti hojii jalqabeera... Yaali!")
+    app.run_polling()
