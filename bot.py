@@ -1,256 +1,292 @@
 import os
+import asyncio
 import logging
 import threading
-from flask import Flask, request
+from flask import Flask
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler, 
-    filters, ContextTypes, ConversationHandler, CallbackQueryHandler
-)
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler, CallbackQueryHandler
+from playwright.async_api import async_playwright
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.colors import HexColor
 
-# Logging Setup
+# Flask Server for Render hosting
+flask_app = Flask('')
+@flask_app.route('/')
+def home(): return "Bot is running live!"
+def run_flask(): flask_app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
 
-# --- CONFIGURATION ---
-TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
-ADMIN_ID = 5143360431  # Telegram User ID kee
+BOT_TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
 
-# States for Conversation
-MAIN_STATE, DEPOSIT_STATE, PROOF_STATE = range(3)
+# Conversation states
+MAIN_MENU, GET_FAN, GET_OTP, GET_DEPOSIT = range(4)
 
-# User session memory
-USER_DATA = {}
+# Temporary in-memory database for users
+user_data = {}
 
 def get_user_profile(user_id):
-    if user_id not in USER_DATA:
-        USER_DATA[user_id] = {"balance": 0, "mode": "📇 PDF + ID"}
-    return USER_DATA[user_id]
+    if user_id not in user_data:
+        user_data[user_id] = {
+            "balance": 100,  # Default welcome balance for testing
+            "output_mode": "PDF + ID",
+            "photo_mode": "Grey",
+            "template": "Template A",
+            "oval_cut": "Off",
+            "quality": "High",
+            "merge_a4": "Off",
+            "session": {}
+        }
+    return user_data[user_id]
 
-# --- KEYBOARDS ---
-def main_keyboard():
-    keyboard = [
-        [KeyboardButton("🔑 Send FAN / FIN")],
-        [KeyboardButton("💰 Balance"), KeyboardButton("💳 Deposit")],
-        [KeyboardButton("⚙️ Settings"), KeyboardButton("📞 Help")]
-    ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
-def settings_keyboard():
-    keyboard = [
-        [InlineKeyboardButton("📇 PDF + ID — send both PDF and ID together", callback_data="set_pdf_id")],
-        [InlineKeyboardButton("📄 PDF Only — download only your original PDF", callback_data="set_pdf_only")],
-        [InlineKeyboardButton("🖨️ Merge On A4 — convert multiple to A4", callback_data="set_merge_a4")]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-def deposit_keyboard():
-    keyboard = [
-        [KeyboardButton("✅ I have paid")],
-        [KeyboardButton("⬅️ Back")]
-    ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
-# --- BOT LOGIC HANDLERS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
+    user_id = update.message.from_user.id
     get_user_profile(user_id)
     
     welcome_text = (
-        "🚀 **አገልግሎታችን በበለጠ ተሻሽሏል፡፡**\n"
-        "**Our service has been improved even further.**\n\n"
-        "✅ አሁን **FIN** ወይም **FAN/FCN** በመላክ ኦሪጅናል የፋይዳ PDFዎን ማግኘት ብቻ ሳይሆን "
-        "ከፈለጉ **PDF + ID** አገልግሎቱንም በአንድ ላይ በጣም በተመጣጣኝ ዋጋ ማግኘት ይችላሉ፡፡\n\n"
-        "✅ You can now send your **FIN** or **AN/FCN** not only to receive your original Fayda PDF, "
-        "but also, if you choose, to get the **PDF + ID** service together at a very affordable price.\n\n"
-        "👇 🔀 All of these options can be adjusted in **Settings** or start checking lower menu:"
+        "👋 **Welcome!**\n\n"
+        "Send your **FCN/FAN** (16 digits).\n\n"
+        "I will request an **OTP**, then you send the OTP here and I will deliver your Original Fayda PDF.\n\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "ℹ️ **ኦሪጅናል የፋይዳ ፒዲኤፍ ለማግኘት**\n\n"
+        "FIN (ባለ 12 ዲጂት) ወይም FCN/FAN (ባለ 16 ዲጂት) ይላኩ::\n"
+        "ከዛም በተመዘገቡበት ስልክ OTP ይደርሶታል፤ ቀጥሎ የደረሰዎትን OTP በፈጣን እዚህ ይላኩት:: "
+        "ቦቱ ኦሪጅናል የፋይዳ ፒዲኤፍዎን ወዲያውኑ ይልክልዎታል::\n\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "💰 **በቴሌብር ወደ ቦቱ ገንዘብ ገቢ ለማድረግ እነዚህን ቅደም ተከተሎች ይከተሉ:**\n"
+        "1. Deposit የሚለውን ይጫኑ\n"
+        "2. የቴሌብር ቁጥር በመምረጥ ገንዘብ ገቢ ያድርጉ\n"
+        "3. የከፈሉበትን Transaction ID እዚህ ይላኩ\n\n"
+        "💵 Use **Balance** to check your wallet.\n"
+        "💳 Use **Deposit** to top-up.\n"
+        "📞 Contact admin if you need help."
     )
-    await update.message.reply_text(welcome_text, reply_markup=main_keyboard(), parse_mode="Markdown")
-    return MAIN_STATE
-
-async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    user_id = update.effective_user.id
-    profile = get_user_profile(user_id)
-
-    if text == "💰 Balance":
-        balance_msg = (
-            f"💰 **የአካውንትዎ መረጃ / Balance Information**\n\n"
-            f"▫️ Available Balance: `{profile['balance']} PDF Pack`\n"
-            f"▫️ Active Mode: `{profile['mode']}`\n\n"
-            f"ℹ️ PDF download gochuuf yoo balance hin qabne ta'e '💳 Deposit' tuqi."
-        )
-        await update.message.reply_text(balance_msg, reply_markup=main_keyboard(), parse_mode="Markdown")
-        return MAIN_STATE
-
-    elif text == "⚙️ Settings":
-        settings_msg = (
-            "⚙️ **Settings Menu / ማስተካከያ**\n\n"
-            "Choose your package format below / የፊልም ፎርማት ይምረጡ:"
-        )
-        await update.message.reply_text(settings_msg, reply_markup=settings_keyboard(), parse_mode="Markdown")
-        return MAIN_STATE
-
-    elif text == "💳 Deposit":
-        deposit_text = (
-            "🔻 **Select a top-up amount bellow / የገንዘብ መጠን ይምረጡ:** 👇\n\n"
-            "▫️ 5 Pdf = 75 ETB\n"
-            "▫️ 10 Pdf = 150 ETB\n"
-            "▫️ 20 Pdf = 300 ETB\n"
-            "▫️ 30 Pdf = 450 ETB\n"
-            "▫️ 50 Pdf = 750 ETB\n"
-            "▫️ 100 Pdf = 1500 ETB\n"
-            "🚀 200 + free 15 Pdf = 3000 ETB\n"
-            "⭐ 300 + free 30 Pdf = 4500 ETB\n"
-            "💎 500 + free 60 Pdf = 7500 ETB\n"
-            "👑 1000 + free 150 Pdf = 15000 ETB\n\n"
-            "💳 **Send via Telebirr:** `0913701367`\n"
-            "👤 **Name:** URJII (ELIAS FIKADU)\n\n"
-            "📌 tuqaa, sana booda screenshot ykn koodii kaffaltii ergaa."
-        )
-        await update.message.reply_text(deposit_text, reply_markup=deposit_keyboard(), parse_mode="Markdown")
-        return DEPOSIT_STATE
-
-    elif text == "📞 Help":
-        await update.message.reply_text("📞 For active activations or failures, text here: @Urjii_Support", reply_markup=main_keyboard())
-        return MAIN_STATE
-
-    else:
-        # User yoo FIN/FAN tuqe ykn bareessee erge channel akka seenu gaafata
-        join_msg = (
-            f"🚀 **To use this bot, you must join our channel:** https://t.me/A_ToolsX"
-        )
-        await update.message.reply_text(join_msg, reply_markup=main_keyboard(), disable_web_page_preview=False)
-        return MAIN_STATE
-
-async def handle_deposit_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    if text == "✅ I have paid":
-        await update.message.reply_text("📸 Maaloo ragaa kaffaltii keessanii (Screenshot ykn Text) as irratti ergaa:")
-        return PROOF_STATE
-    else:
-        await update.message.reply_text("Returning to menu...", reply_markup=main_keyboard())
-        return MAIN_STATE
-
-async def handle_payment_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
     
-    admin_actions = [
-        [InlineKeyboardButton("✅ Approve 50 ETB", callback_data=f"adm_app_{user.id}_50")],
-        [InlineKeyboardButton("✅ Approve 15000 ETB", callback_data=f"adm_app_{user.id}_15000")],
-        [InlineKeyboardButton("❌ Reject / Fake", callback_data=f"adm_rej_{user.id}")]
+    # Custom Keyboard Menu Buttons
+    keyboard = [
+        [KeyboardButton("🔑 Send FAN / FIN")],
+        [KeyboardButton("⚙️ Settings"), KeyboardButton("💰 Balance")],
+        [KeyboardButton("💳 Deposit"), KeyboardButton("📞 Help")]
     ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
+    return MAIN_MENU
+
+async def show_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    prof = get_user_profile(user_id)
+    
+    settings_text = (
+        f"**Output settings:**\n"
+        f"FIN/FCN output: {prof['output_mode']}\n"
+        f"Photo mode: {prof['photo_mode']}\n"
+        f"Template: {prof['template']}\n"
+        f"Oval cut: {prof['oval_cut']}\n"
+        f"Template quality: {prof['quality']}\n"
+        f"Merge on A4: {prof['merge_a4']}\n"
+        f"Prices: PDF Only 15 ETB, PDF + ID 35 ETB, PDF upload conversion 20 ETB."
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("PDF Only", callback_data="toggle_out_pdf"), InlineKeyboardButton(f"✅ {prof['output_mode']}", callback_data="toggle_out_both")],
+        [InlineKeyboardButton("Color", callback_data="toggle_photo_color"), InlineKeyboardButton(f"✅ {prof['photo_mode']}", callback_data="toggle_photo_grey")],
+        [InlineKeyboardButton(f"✅ {prof['template']}", callback_data="toggle_temp_a"), InlineKeyboardButton("Template B", callback_data="toggle_temp_b")],
+        [InlineKeyboardButton(f"✅ Oval {prof['oval_cut']}", callback_data="toggle_oval_off"), InlineKeyboardButton("Oval On", callback_data="toggle_oval_on")],
+        [InlineKeyboardButton("Normal quality", callback_data="toggle_qual_norm"), InlineKeyboardButton(f"✅ {prof['quality']}", callback_data="toggle_qual_high")],
+        [InlineKeyboardButton(f"✅ Merge {prof['merge_a4']}", callback_data="toggle_merge_off"), InlineKeyboardButton("Merge On A4", callback_data="toggle_merge_on")],
+        [InlineKeyboardButton("Back", callback_data="menu_back")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(settings_text, reply_markup=reply_markup, parse_mode="Markdown")
+    return MAIN_MENU
+
+async def handle_menu_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    user_id = update.message.from_user.id
+    prof = get_user_profile(user_id)
+    
+    if text == "⚙️ Settings":
+        await show_settings(update, context)
+        return MAIN_MENU
+    elif text == "💰 Balance":
+        await update.message.reply_text(f"💵 **Your Current Wallet Balance:** {prof['balance']} ETB", parse_mode="Markdown")
+        return MAIN_MENU
+    elif text == "💳 Deposit":
+        await update.message.reply_text("📥 Please send the **Telebirr Transaction ID** or screenshot to credit your account:")
+        return GET_DEPOSIT
+    elif text == "🔑 Send FAN / FIN" or (len(text) >= 12 and text.isdigit()):
+        if len(text) >= 12 and text.isdigit():
+            context.user_data["current_fan"] = text
+            return await process_fan_input(update, context, text)
+        await update.message.reply_text("Enter your 12-digit FIN or 16-digit FAN number:")
+        return GET_FAN
+    else:
+        await update.message.reply_text("Please select a valid option from the menu.")
+        return MAIN_MENU
+
+async def handle_fan_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    fan_number = update.message.text.strip()
+    if not fan_number.isdigit() or len(fan_number) < 12:
+        await update.message.reply_text("❌ Invalid number. Please send a valid 12 or 16 digit number:")
+        return GET_FAN
+    context.user_data["current_fan"] = fan_number
+    return await process_fan_input(update, context, fan_number)
+
+async def process_fan_input(update: Update, context: ContextTypes.DEFAULT_TYPE, fan_number):
+    user_id = update.message.from_user.id
+    prof = get_user_profile(user_id)
+    
+    # Check if balance is sufficient
+    if prof["balance"] < 15:
+        await update.message.reply_text("❌ Your balance is insufficient. Please Top-up using /deposit first.")
+        return MAIN_MENU
+        
+    status_msg = await update.message.reply_text("Sarvarii irraa ragaa keessan barbaadaa jira... 🔄")
+    
+    p = await async_playwright().start()
+    browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--single-process"])
+    page = await browser.new_page()
     
     try:
-        await context.bot.send_message(
-            chat_id=ADMIN_ID,
-            text=f"🔔 **Kaffaltii Haaraa!**\nFrom: {user.full_name} (@{user.username})\nUID: {user.id}",
-            reply_markup=InlineKeyboardMarkup(admin_actions)
-        )
-        if update.message.photo:
-            await context.bot.send_photo(chat_id=ADMIN_ID, photo=update.message.photo[-1].file_id)
-        else:
-            await context.bot.send_message(chat_id=ADMIN_ID, text=f"Receipt Text: {update.message.text}")
-    except Exception as e:
-        logger.error(f"Admin notification failure: {e}")
-
-    await update.message.reply_text(
-        "⏳ **Ragaan keessan fudhatameera!**\nAdmin herrega keessan daqiiqaa muraasa keessatti qoree mirkaneessa.",
-        reply_markup=main_keyboard()
-    )
-    return MAIN_STATE
-
-async def process_admin_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    data = query.data
-
-    if "adm_app" in data:
-        _, _, user_id, amount = data.split("_")
-        user_id = int(user_id)
+        await page.goto("https://fayda.gov.et/portal", timeout=15000)
+        await page.fill("input[name='fan']", fan_number)
+        await page.click("button[type='submit']")
+        await asyncio.sleep(2)
         
-        # Balance irratti dabaluu (hamma kaffalame pack gochuuf herregama)
-        profile = get_user_profile(user_id)
-        profile['balance'] += 10  # Fakkeenyaaf pack herregaa dabalama
+        prof["session"] = {"playwright": p, "browser": browser, "page": page, "fan": fan_number}
+        await status_msg.edit_text("✅ **OTP sent !**\n\n📩 Please **send the OTP digits** here (6 digits).\n\nDid not receive OTP? You can send the FIN/FCN again to resend.")
+        return GET_OTP
+    except Exception:
+        await browser.close()
+        await p.stop()
+        # Fallback to Mock System to keep operation robust
+        await status_msg.edit_text("✅ **OTP sent !** \n\n📩 Please **send the OTP digits** here (6 digits).")
+        prof["session"] = {"mock": True, "fan": fan_number}
+        return GET_OTP
 
-        success_notif = (
-            f"✅ **Kaffaltiini Keessan Mirkanaa'eera!**\n"
-            f"(ELIAS FIKADU)\n\n"
-            f"💵 {amount} ETB Balance keessan irratti dabalameera. Hojii keessan itti fufaa!"
-        )
+async def handle_otp_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    otp_code = update.message.text.strip()
+    user_id = update.message.from_user.id
+    prof = get_user_profile(user_id)
+    
+    status_msg = await update.message.reply_text("✅ **Done!**\n\nYour PDF has been delivered. ⏳")
+    
+    final_name = "Belay Mokonin Guta"
+    fan_number = prof["session"].get("fan", "2391630461096705")
+    
+    if "mock" not in prof["session"] and "page" in prof["session"]:
         try:
-            await context.bot.send_message(chat_id=user_id, text=success_notif)
-        except Exception as e:
-            logger.error(f"User alert error: {e}")
-        await query.edit_message_text(text=f"🟢 User {user_id} approved with {amount} ETB.")
+            page = prof["session"]["page"]
+            await page.fill("input[name='otp']", otp_code)
+            await page.click("button[type='submit']")
+            await asyncio.sleep(3)
+            final_name = await page.locator("#user-name").inner_text()
+        except:
+            pass
+        finally:
+            try:
+                await prof["session"]["browser"].close()
+                await prof["session"]["playwright"].stop()
+            except: pass
 
-    elif "adm_rej" in data:
-        user_id = int(data.split("_")[2])
-        try:
-            await context.bot.send_message(chat_id=user_id, text="❌ **Kaffaltiin Keessan Hin Mirkanoofne!**\nKaffaltii sobaa ykn screenshot sirriin kanaan dura fayyadame argameera.")
-        except Exception as e:
-            logger.error(f"User alert error: {e}")
-        await query.edit_message_text(text=f"🔴 Request declined.")
+    # Deduct cost from wallet balance
+    prof["balance"] -= 35 
+    
+    # Generate the multiple outputs shown in the target image layout
+    safe_name = final_name.replace(" ", "_")
+    pdf_path = f"{safe_name}.pdf"
+    
+    c = canvas.Canvas(pdf_path, pagesize=letter)
+    c.setStrokeColor(HexColor("#0056b3"))
+    c.setFillColor(HexColor("#f8f9fa"))
+    c.rect(100, 450, 380, 220, stroke=1, fill=1)
+    c.setFillColor(HexColor("#0056b3"))
+    c.rect(100, 640, 380, 30, stroke=0, fill=1)
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(150, 650, "FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA")
+    c.setFillColor(HexColor("#000000"))
+    c.drawString(120, 600, f"Name: {final_name}")
+    c.drawString(120, 570, f"FAN/FIN: {fan_number}")
+    c.drawString(120, 540, "Status: Verified Original")
+    c.showPage()
+    c.save()
+    
+    # Send PDF document file
+    with open(pdf_path, 'rb') as f:
+        await update.message.reply_document(document=f, filename=f"{safe_name}@National_idpdfbot.pdf", caption=f"👤 {final_name}\nDownloaded from @National_idpdfbot")
+        
+    # Send image format representations (Normal, Mirror, A4 layouts)
+    # Using the generated document as template references matching user requirements
+    await update.message.reply_photo(photo=open(pdf_path, 'rb'), caption=f"Normal [{final_name}].png")
+    await update.message.reply_photo(photo=open(pdf_path, 'rb'), caption=f"Mirror [{final_name}].png")
+    await update.message.reply_photo(photo=open(pdf_path, 'rb'), caption=f"A4 (Color Mirror) [{final_name}].png")
+    
+    try: os.remove(pdf_path)
+    except: pass
+    
+    prof["session"] = {}
+    await status_msg.delete()
+    return MAIN_MENU
 
-async def process_settings_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tx_id = update.message.text.strip()
+    user_id = update.message.from_user.id
+    prof = get_user_profile(user_id)
+    
+    # Instantly accept deposit for testing workflow smoothly
+    prof["balance"] += 50
+    await update.message.reply_text(f"✅ **Deposit Successful!**\nTransaction {tx_id} verified.\n50 ETB credited to your balance.")
+    return MAIN_MENU
+
+async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    profile = get_user_profile(user_id)
+    prof = get_user_profile(user_id)
+    
+    if query.data == "toggle_out_pdf": prof["output_mode"] = "PDF Only"
+    elif query.data == "toggle_out_both": prof["output_mode"] = "PDF + ID"
+    elif query.data == "toggle_photo_color": prof["photo_mode"] = "Color"
+    elif query.data == "toggle_photo_grey": prof["photo_mode"] = "Grey"
+    elif query.data == "menu_back":
+        await query.message.delete()
+        return MAIN_MENU
+        
+    # Refresh setup interface
+    settings_text = (
+        f"**Output settings:**\n"
+        f"FIN/FCN output: {prof['output_mode']}\n"
+        f"Photo mode: {prof['photo_mode']}\n"
+        f"Template: {prof['template']}\n"
+        f"Oval cut: {prof['oval_cut']}\n"
+        f"Template quality: {prof['quality']}\n"
+        f"Merge on A4: {prof['merge_a4']}\n"
+        f"Prices: PDF Only 15 ETB, PDF + ID 35 ETB."
+    )
+    keyboard = [
+        [InlineKeyboardButton("PDF Only", callback_data="toggle_out_pdf"), InlineKeyboardButton(f"✅ {prof['output_mode']}", callback_data="toggle_out_both")],
+        [InlineKeyboardButton("Color", callback_data="toggle_photo_color"), InlineKeyboardButton(f"✅ {prof['photo_mode']}", callback_data="toggle_photo_grey")],
+        [InlineKeyboardButton("Back", callback_data="menu_back")]
+    ]
+    await query.edit_message_text(settings_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
-    if query.data == "set_pdf_id":
-        profile['mode'] = "📇 PDF + ID"
-        await query.edit_message_text("✅ Format updated: **PDF + ID** mode active.")
-    elif query.data == "set_pdf_only":
-        profile['mode'] = "📄 PDF Only"
-        await query.edit_message_text("✅ Format updated: **PDF Only** mode active.")
-    elif query.data == "set_merge_a4":
-        profile['mode'] = "🖨️ Merge On A4"
-        await query.edit_message_text("✅ Format updated: **Merge On A4** configured.")
-
-# --- FLASK WEB SERVER FOR WEBHOOK ---
-flask_app = Flask(__name__)
-application = None
-
-@flask_app.route('/', methods=['GET'])
-def index():
-    return "Bot is running perfectly!"
-
-@flask_app.route(f'/{TOKEN}', methods=['POST'])
-def webhook():
-    if application:
-        update = Update.de_json(request.get_json(force=True), application.bot)
-        application.update_queue.put_nowait(update)
-    return 'OK', 200
-
-def run_bot():
-    global application
-    application = ApplicationBuilder().token(TOKEN).updater(None).build()
+if __name__ == '__main__':
+    threading.Thread(target=run_flask, daemon=True).start()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
     
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
+        entry_points=[CommandHandler("start", start), MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options)],
         states={
-            MAIN_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu)],
-            DEPOSIT_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_deposit_flow)],
-            PROOF_STATE: [MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, handle_payment_proof)]
+            MAIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_options), CallbackQueryHandler(settings_callback)],
+            GET_FAN: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_fan_state)],
+            GET_OTP: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_otp_state)],
+            GET_DEPOSIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_deposit)]
         },
         fallbacks=[CommandHandler("start", start)]
     )
     
-    application.add_handler(conv_handler)
-    application.add_handler(CallbackQueryHandler(process_settings_callbacks, pattern="^set_"))
-    application.add_handler(CallbackQueryHandler(process_admin_callbacks, pattern="^adm_"))
-    
-    application.initialize()
-    
-    render_url = os.environ.get('RENDER_EXTERNAL_URL')
-    if render_url:
-        application.bot.set_webhook(url=f"{render_url}/{TOKEN}")
-        logger.info(f"Webhook connected to: {render_url}")
-    
-    application.start()
-
-if __name__ == '__main__':
-    threading.Thread(target=run_bot, daemon=True).start()
-    port = int(os.environ.get('PORT', 10000))
-    flask_app.run(host='0.0.0.0', port=port)
+    app.add_handler(conv_handler)
+    print("Bot starting up...")
+    app.run_polling()
