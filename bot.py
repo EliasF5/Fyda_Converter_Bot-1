@@ -15,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 # --- CONFIGURATION ---
 TOKEN = "8647607353:AAHbJYHAYMRtLDTduLNYghgSC_Q9-UPjZrY"
-# Telegram User ID kee as galchi (Kaffaltiin yo dhufu siif beeksisa)
-ADMIN_ID = 5143360431  
+ADMIN_ID = 5143360431  # Telegram User ID kee
 
 # States for Conversation
 MAIN_STATE, DEPOSIT_STATE, PROOF_STATE = range(3)
@@ -29,7 +28,7 @@ def get_user_profile(user_id):
         USER_DATA[user_id] = {"balance": 0, "mode": "📇 PDF + ID"}
     return USER_DATA[user_id]
 
-# --- KEYBOARDS (Z-Copy of @National_idpdfbot) ---
+# --- KEYBOARDS ---
 def main_keyboard():
     keyboard = [
         [KeyboardButton("💰 Balance"), KeyboardButton("💳 Deposit")],
@@ -118,20 +117,12 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return MAIN_STATE
 
     else:
-        # FIN / FAN Verification check
-        if profile['balance'] <= 0:
-            await update.message.reply_text(
-                "❌ **Balance Unsufficient!**\n\n"
-                "Kaffaltii sirrii galchuu qabdu. Meeshaa keessan irratti balance hin jiru. "
-                "Maaloo jalqaba '💳 Deposit' tuquun herrega keessan guuttadhaa.",
-                reply_markup=main_keyboard()
-            )
-            return MAIN_STATE
-        
-        await update.message.reply_text(f"⏳ **Processing request for:** `{text}`...\nPlease wait.")
-        # Simulating API / Registry response safely without Playwright errors
-        profile['balance'] -= 1
-        await update.message.reply_text("✅ Fayda matched! Document generated successfully.", reply_markup=main_keyboard())
+        # Join Channel Requirement (Bifa FakeSite sanaan kan ka'ame)
+        # Fakkeenyaaf, namni FIN/FAN ergu hundi akka armaan gadii argata:
+        join_msg = (
+            f"🚀 **To use this bot, you must join our channel:** https://t.me/A_ToolsX"
+        )
+        await update.message.reply_text(join_msg, reply_markup=main_keyboard(), disable_web_page_preview=False)
         return MAIN_STATE
 
 async def handle_deposit_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -148,8 +139,7 @@ async def handle_payment_proof(update: Update, context: ContextTypes.DEFAULT_TYP
     
     admin_actions = [
         [InlineKeyboardButton("✅ Approve 5 PDF", callback_data=f"adm_app_{user.id}_5")],
-        [InlineKeyboardButton("✅ Approve 10 PDF", callback_data=f"adm_app_{user.id}_10")],
-        [InlineKeyboardButton("✅ Approve 100 PDF", callback_data=f"adm_app_{user.id}_100")],
+        [InlineKeyboardButton("✅ Approve 50 PDF", callback_data=f"adm_app_{user.id}_50")],
         [InlineKeyboardButton("❌ Reject / Fake", callback_data=f"adm_rej_{user.id}")]
     ]
     
@@ -164,7 +154,7 @@ async def handle_payment_proof(update: Update, context: ContextTypes.DEFAULT_TYP
         else:
             await context.bot.send_message(chat_id=ADMIN_ID, text=f"Receipt Text: {update.message.text}")
     except Exception as e:
-        logger.error(f"Admin message error: {e}")
+        logger.error(f"Admin notif error: {e}")
 
     await update.message.reply_text(
         "⏳ **Ragaan keessan fudhatameera!**\nAdmin herrega keessan daqiiqaa muraasa keessatti qoree mirkaneessa.",
@@ -189,12 +179,18 @@ async def process_admin_callbacks(update: Update, context: ContextTypes.DEFAULT_
             f"(ELIAS FIKADU)\n\n"
             f"💵 {packs} PDF Pack Balance keessan irratti dabalameera. Hojii keessan itti fufaa!"
         )
-        await context.bot.send_message(chat_id=user_id, text=success_notif)
+        try:
+            await context.bot.send_message(chat_id=user_id, text=success_notif)
+        except Exception as e:
+            logger.error(f"Failed to notify user: {e}")
         await query.edit_message_text(text=f"🟢 User {user_id} approved with {packs} packs.")
 
     elif "adm_rej" in data:
         user_id = int(data.split("_")[2])
-        await context.bot.send_message(chat_id=user_id, text="❌ **Kaffaltiin Keessan Hin Mirkanoofne!**\nKaffaltii sobaa ykn screenshot sirriin kanaan dura fayyadame argameera.")
+        try:
+            await context.bot.send_message(chat_id=user_id, text="❌ **Kaffaltiin Keessan Hin Mirkanoofne!**\nKaffaltii sobaa ykn screenshot sirriin kanaan dura fayyadame argameera.")
+        except Exception as e:
+            logger.error(f"Failed to notify user: {e}")
         await query.edit_message_text(text=f"🔴 Request declined.")
 
 async def process_settings_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -219,7 +215,7 @@ application = None
 
 @flask_app.route('/', methods=['GET'])
 def index():
-    return "Bot is awake and running smoothly!"
+    return "Bot is running perfectly!"
 
 @flask_app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
@@ -248,11 +244,10 @@ def run_bot():
     
     application.initialize()
     
-    # Webhook hookup dynamically using Render System Environment
     render_url = os.environ.get('RENDER_EXTERNAL_URL')
     if render_url:
         application.bot.set_webhook(url=f"{render_url}/{TOKEN}")
-        logger.info(f"Webhook connected successfully to: {render_url}")
+        logger.info(f"Webhook connected to: {render_url}")
     
     application.start()
 
