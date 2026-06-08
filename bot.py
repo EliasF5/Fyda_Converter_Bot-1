@@ -2,7 +2,6 @@ import os
 import logging
 import threading
 from flask import Flask, request
-import requests
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler, 
@@ -58,7 +57,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     get_user_profile(user_id)
     
     welcome_text = (
-        "🚀 **አገልግሎታችን በበለጠ ተሻሽሏል፡፡**\n"
+        "🚀 **አገልግሎታችን በበለጠ ተሻшሏል፡፡**\n"
         "**Our service has been improved even further.**\n\n"
         "✅ አሁን **FIN** ወይም **FAN/FCN** በመላክ ኦሪጅናል የፋይዳ PDFዎን ማግኘት ብቻ ሳይሆን "
         "ከፈለጉ **PDF + ID** አገልግሎቱንም በአንድ ላይ በጣም በተመጣጣኝ ዋጋ ማግኘት ይችላሉ፡፡\n\n"
@@ -117,8 +116,7 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return MAIN_STATE
 
     else:
-        # Join Channel Requirement (Bifa FakeSite sanaan kan ka'ame)
-        # Fakkeenyaaf, namni FIN/FAN ergu hundi akka armaan gadii argata:
+        # Fin / Fan check - Channel Join Requirement
         join_msg = (
             f"🚀 **To use this bot, you must join our channel:** https://t.me/A_ToolsX"
         )
@@ -154,7 +152,7 @@ async def handle_payment_proof(update: Update, context: ContextTypes.DEFAULT_TYP
         else:
             await context.bot.send_message(chat_id=ADMIN_ID, text=f"Receipt Text: {update.message.text}")
     except Exception as e:
-        logger.error(f"Admin notif error: {e}")
+        logger.error(f"Admin notification failure: {e}")
 
     await update.message.reply_text(
         "⏳ **Ragaan keessan fudhatameera!**\nAdmin herrega keessan daqiiqaa muraasa keessatti qoree mirkaneessa.",
@@ -182,7 +180,7 @@ async def process_admin_callbacks(update: Update, context: ContextTypes.DEFAULT_
         try:
             await context.bot.send_message(chat_id=user_id, text=success_notif)
         except Exception as e:
-            logger.error(f"Failed to notify user: {e}")
+            logger.error(f"User alert error: {e}")
         await query.edit_message_text(text=f"🟢 User {user_id} approved with {packs} packs.")
 
     elif "adm_rej" in data:
@@ -190,7 +188,7 @@ async def process_admin_callbacks(update: Update, context: ContextTypes.DEFAULT_
         try:
             await context.bot.send_message(chat_id=user_id, text="❌ **Kaffaltiin Keessan Hin Mirkanoofne!**\nKaffaltii sobaa ykn screenshot sirriin kanaan dura fayyadame argameera.")
         except Exception as e:
-            logger.error(f"Failed to notify user: {e}")
+            logger.error(f"User alert error: {e}")
         await query.edit_message_text(text=f"🔴 Request declined.")
 
 async def process_settings_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -215,7 +213,7 @@ application = None
 
 @flask_app.route('/', methods=['GET'])
 def index():
-    return "Bot is running perfectly!"
+    return "Bot is active and deploy clear!"
 
 @flask_app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
