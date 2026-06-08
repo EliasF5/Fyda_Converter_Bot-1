@@ -30,9 +30,9 @@ def get_user_profile(user_id):
 # --- KEYBOARDS ---
 def main_keyboard():
     keyboard = [
+        [KeyboardButton("🔑 Send FAN / FIN")],
         [KeyboardButton("💰 Balance"), KeyboardButton("💳 Deposit")],
-        [KeyboardButton("🎨 Settings")],
-        [KeyboardButton("🧑‍💻 Contact admin")]
+        [KeyboardButton("⚙️ Settings"), KeyboardButton("📞 Help")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -57,7 +57,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     get_user_profile(user_id)
     
     welcome_text = (
-        "🚀 **አገልግሎታችን በበለጠ ተሻшሏል፡፡**\n"
+        "🚀 **አገልግሎታችን በበለጠ ተሻሽሏል፡፡**\n"
         "**Our service has been improved even further.**\n\n"
         "✅ አሁን **FIN** ወይም **FAN/FCN** በመላክ ኦሪጅናል የፋይዳ PDFዎን ማግኘት ብቻ ሳይሆን "
         "ከፈለጉ **PDF + ID** አገልግሎቱንም በአንድ ላይ በጣም በተመጣጣኝ ዋጋ ማግኘት ይችላሉ፡፡\n\n"
@@ -83,7 +83,7 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(balance_msg, reply_markup=main_keyboard(), parse_mode="Markdown")
         return MAIN_STATE
 
-    elif text == "🎨 Settings":
+    elif text == "⚙️ Settings":
         settings_msg = (
             "⚙️ **Settings Menu / ማስተካከያ**\n\n"
             "Choose your package format below / የፊልም ፎርማት ይምረጡ:"
@@ -106,17 +106,17 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "👑 1000 + free 150 Pdf = 15000 ETB\n\n"
             "💳 **Send via Telebirr:** `0913701367`\n"
             "👤 **Name:** URJII (ELIAS FIKADU)\n\n"
-            "📌 After payment, tap **✅ I have paid** and then send a screenshot/text as evidence."
+            "📌 tuqaa, sana booda screenshot ykn koodii kaffaltii ergaa."
         )
         await update.message.reply_text(deposit_text, reply_markup=deposit_keyboard(), parse_mode="Markdown")
         return DEPOSIT_STATE
 
-    elif text == "🧑‍💻 Contact admin":
+    elif text == "📞 Help":
         await update.message.reply_text("📞 For active activations or failures, text here: @Urjii_Support", reply_markup=main_keyboard())
         return MAIN_STATE
 
     else:
-        # Fin / Fan check - Channel Join Requirement
+        # User yoo FIN/FAN tuqe ykn bareessee erge channel akka seenu gaafata
         join_msg = (
             f"🚀 **To use this bot, you must join our channel:** https://t.me/A_ToolsX"
         )
@@ -136,8 +136,8 @@ async def handle_payment_proof(update: Update, context: ContextTypes.DEFAULT_TYP
     user = update.effective_user
     
     admin_actions = [
-        [InlineKeyboardButton("✅ Approve 5 PDF", callback_data=f"adm_app_{user.id}_5")],
-        [InlineKeyboardButton("✅ Approve 50 PDF", callback_data=f"adm_app_{user.id}_50")],
+        [InlineKeyboardButton("✅ Approve 50 ETB", callback_data=f"adm_app_{user.id}_50")],
+        [InlineKeyboardButton("✅ Approve 15000 ETB", callback_data=f"adm_app_{user.id}_15000")],
         [InlineKeyboardButton("❌ Reject / Fake", callback_data=f"adm_rej_{user.id}")]
     ]
     
@@ -166,22 +166,23 @@ async def process_admin_callbacks(update: Update, context: ContextTypes.DEFAULT_
     data = query.data
 
     if "adm_app" in data:
-        _, _, user_id, packs = data.split("_")
+        _, _, user_id, amount = data.split("_")
         user_id = int(user_id)
-        packs = int(packs)
+        
+        # Balance irratti dabaluu (hamma kaffalame pack gochuuf herregama)
         profile = get_user_profile(user_id)
-        profile['balance'] += packs
+        profile['balance'] += 10  # Fakkeenyaaf pack herregaa dabalama
 
         success_notif = (
             f"✅ **Kaffaltiini Keessan Mirkanaa'eera!**\n"
             f"(ELIAS FIKADU)\n\n"
-            f"💵 {packs} PDF Pack Balance keessan irratti dabalameera. Hojii keessan itti fufaa!"
+            f"💵 {amount} ETB Balance keessan irratti dabalameera. Hojii keessan itti fufaa!"
         )
         try:
             await context.bot.send_message(chat_id=user_id, text=success_notif)
         except Exception as e:
             logger.error(f"User alert error: {e}")
-        await query.edit_message_text(text=f"🟢 User {user_id} approved with {packs} packs.")
+        await query.edit_message_text(text=f"🟢 User {user_id} approved with {amount} ETB.")
 
     elif "adm_rej" in data:
         user_id = int(data.split("_")[2])
@@ -213,7 +214,7 @@ application = None
 
 @flask_app.route('/', methods=['GET'])
 def index():
-    return "Bot is active and deploy clear!"
+    return "Bot is running perfectly!"
 
 @flask_app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
