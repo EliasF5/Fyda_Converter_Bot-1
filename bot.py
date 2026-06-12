@@ -9,8 +9,8 @@ from flask import Flask
 import threading
 
 # CONFIGURATION
-API_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN_HERE'  
-ADMIN_CHAT_ID = '8974775722:AAEdkBUxx02cwzLLzGT6Fa5hqSWtveqGz6A'  # Chat ID kee kan Elias
+API_TOKEN = '8974775722:AAEdkBUxx02cwzLLzGT6Fa5hqSWtveqGz6A'  
+ADMIN_CHAT_ID = 'YOUR_PERSONAL_TELEGRAM_ID_HERE'  # Chat ID kee kan Elias
 
 bot = telebot.TeleBot(API_TOKEN)
 
