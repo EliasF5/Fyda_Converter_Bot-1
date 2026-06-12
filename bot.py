@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 from flask import Flask
 import threading
 
-API_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN_HERE'  # Token kee as galchi
+API_TOKEN = '8974775722:AAEdkBUxx02cwzLLzGT6Fa5hqSWtveqGz6A'  # Token kee as galchi
 bot = telebot.TeleBot(API_TOKEN)
 
 # 1. DICTIONARY LOCALIZATION (Afaan Saddan + Ergaa Busy/Outage)
