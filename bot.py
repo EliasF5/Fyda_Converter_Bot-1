@@ -3,7 +3,7 @@ import os
 import re
 import telebot
 from telebot import types
-from PIL import Image, ImageOps, ImageDraw, ImageFont
+from PIL import Image, ImageOps
 import requests
 from flask import Flask
 import threading
@@ -14,7 +14,6 @@ ADMIN_CHAT_ID = 'YOUR_PERSONAL_TELEGRAM_ID_HERE'  # Elias Telegram Chat ID
 
 bot = telebot.TeleBot(API_TOKEN)
 
-# DATABASE (Yeroof Memory keessatti qabata)
 user_lang = {}             
 user_balances = {}         
 user_pending_payments = {}
@@ -44,7 +43,7 @@ MESSAGES = {
 def start_bot(message):
     user_id = message.from_user.id
     if user_id not in user_balances:
-        user_balances[user_id] = 2  # Gift 2 credits for new users
+        user_balances[user_id] = 2  # Gift 2
         
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
@@ -62,7 +61,6 @@ def handle_lang_selection(call):
     bot.send_message(call.message.chat.id, MESSAGES[lang]['send_id'], parse_mode='Markdown')
 
 # ==================== TO'ANNOO KAFALTII (ADMIN VERIFICATION) ====================
-
 @bot.message_handler(commands=['topup'])
 def topup_menu(message):
     markup = types.InlineKeyboardMarkup(row_width=1)
@@ -102,7 +100,6 @@ def send_to_admin_verification(message):
     
     bot.send_message(message.chat.id, "⏳ **Transaction ID keessan mirkanaawaa jira... Admin yeroo gabaabaa keessatti cheek godhee siif fe'a.**", parse_mode='Markdown')
     
-    # Gara herrega kee (Admin) irratti Button dhufeen verify goota
     admin_markup = types.InlineKeyboardMarkup()
     admin_markup.add(
         types.InlineKeyboardButton("Verify ✅ (Kireditii Ergi)", callback_data=f"approve_{user_id}_{pending['credits']}"),
@@ -125,11 +122,9 @@ def admin_reject(call):
     bot.edit_message_text(f"❌ Kafaltii User {user_id} kufisteetta (Rejected).", call.message.chat.id, call.message.message_id)
     bot.send_message(user_id, "❌ **Kafaltiin keessan herrega irratti hin argamne. Maaloo Transaction ID sirrii ta'uu cheek godhaatii deebisaa yaala.**", parse_mode='Markdown')
 
-# ==================== ONLINE OCR (FREE WITHOUT LOCAL TESSERACT BUSY) ====================
-
+# ==================== ONLINE OCR ENGINE ====================
 def extract_text_online(image_bytes):
     try:
-        # OCR Space engine bilisaa fayyadama (Server akka hin busy-noonneef)
         url = "https://api.ocr.space/parse/image"
         payload = {"apikey": "helloworld", "language": "eng"}
         files = {"file": ("image.jpg", image_bytes, "image/jpeg")}
@@ -139,8 +134,7 @@ def extract_text_online(image_bytes):
     except:
         return ""
 
-# ==================== CORE ID PROCESSING & LAYOUT CREATION ====================
-
+# ==================== CORE ID PROCESSING ====================
 @bot.message_handler(content_types=['photo'])
 def process_fayda_image(message):
     user_id = message.from_user.id
@@ -156,39 +150,28 @@ def process_fayda_image(message):
         file_info = bot.get_file(message.photo[-1].file_id)
         downloaded_file = bot.download_file(file_info.file_path)
         
-        # 1. OCR - FIN ykn FAN lakkoofsa ofumaan dubbisee baasa
         ocr_text = extract_text_online(downloaded_file)
-        
-        # Regex FIN ykn FAN barbaaduuf
         fin_match = re.search(r'(FIN|FAN)\s*[:\s]*([\d\s]+)', ocr_text, re.IGNORECASE)
-        detected_id = fin_match.group(2).strip() if fin_match else "3051 8063 5013"
+        detected_id = fin_match.group(2).strip() if fin_match else "Unknown"
         
-        # 2. Image Resizing and Cropping
         full_img = Image.open(io.BytesIO(downloaded_file))
         W, H = full_img.size
         
-        # Yoo maamilli screenshot tokko keessatti walitti dhufe erge walakkaatti qora
         if W > H:
             front_side = full_img.crop((0, 0, int(W * 0.5), H))
             back_side = full_img.crop((int(W * 0.5), 0, W, H))
         else:
-            # Yoo suuraa tokko qofa ta'e lamaan iyyuu hamma kaardii standard godha
             front_side = full_img
             back_side = full_img
         
-        # Standard PVC Dimension (1011x638)
         card_w, card_h = 1011, 638
         front_final = front_side.resize((card_w, card_h), Image.Resampling.LANCZOS)
         back_final = back_side.resize((card_w, card_h), Image.Resampling.LANCZOS)
         
-        # MIRROR LAYOUT ON (🪞 Piriintiif dahuu)
         front_final = ImageOps.mirror(front_final)
         back_final = ImageOps.mirror(back_final)
         
-        # Canvas A4 haaraa uumuu (2480x3508 pixels)
         canvas = Image.new('RGB', (2480, 3508), '#FFFFFF')
-        
-        # Bitaa fi Mirga hiriirsuu (Dugda fi Fuula dura)
         canvas.paste(back_final, (150, 200))      
         canvas.paste(front_final, (1250, 200))    
         
@@ -196,7 +179,6 @@ def process_fayda_image(message):
         canvas.save(bio, 'JPEG', quality=100)
         bio.seek(0)
         
-        # Kireditii hir'isuu
         user_balances[user_id] -= 1
         
         caption_msg = f"✅ **Fayda ID Processed Successfully!**\n• Detected ID: `{detected_id}`\n• Credit Left: {user_balances[user_id]}\n\n🪞 Mirror Layout: **ON (Ready for PVC Print)**"
@@ -205,7 +187,6 @@ def process_fayda_image(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Dogoggora: {str(e)}")
 
-# Web Server Render irratti akka active ta'uuf
 app = Flask('')
 @app.route('/')
 def home(): return "Active"
